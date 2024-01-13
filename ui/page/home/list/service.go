@@ -14,6 +14,7 @@ import (
 	"gioui.org/widget/material"
 	"github.com/go-gost/gui/api"
 	"github.com/go-gost/gui/ui/icons"
+	"github.com/go-gost/gui/ui/page"
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 )
 
@@ -22,12 +23,14 @@ type serviceState struct {
 }
 
 type serviceList struct {
+	router *page.Router
 	list   layout.List
 	states []serviceState
 }
 
-func Service() List {
+func Service(r *page.Router) List {
 	return &serviceList{
+		router: r,
 		list: layout.List{
 			Axis:      layout.Vertical,
 			Alignment: layout.Middle,
@@ -136,11 +139,11 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
 								layout.Flexed(1, func(gtx C) D {
-									return material.Body2(th, fmt.Sprintf("Addr: %s", service.Addr)).Layout(gtx)
+									return material.Body2(th, service.Addr).Layout(gtx)
 								}),
 								layout.Rigid(func(gtx C) D {
 									if service.Status != nil && service.Status.CreateTime > 0 {
-										createdAt := time.Unix(0, service.Status.CreateTime)
+										createdAt := time.Unix(service.Status.CreateTime, 0)
 										v, unit := formatDuration(time.Since(createdAt))
 										return material.Body2(th, fmt.Sprintf("%d%s", v, unit)).Layout(gtx)
 									}
@@ -148,13 +151,17 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 								}),
 							)
 						}),
-						layout.Rigid(material.Body2(th, fmt.Sprintf("Type: %s, %s", handler.Type, listener.Type)).Layout),
-						layout.Rigid(layout.Spacer{Height: 5}.Layout),
+						// layout.Rigid(material.Body2(th, fmt.Sprintf("Type: %s, %s", handler.Type, listener.Type)).Layout),
+						layout.Rigid(layout.Spacer{Height: 10}.Layout),
 						layout.Rigid(func(gtx C) D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
+								layout.Rigid(func(gtx C) D {
+									return icons.IconActionCode.Layout(gtx, color.NRGBA(colornames.Grey800))
+								}),
+								layout.Rigid(layout.Spacer{Width: 5}.Layout),
 								layout.Flexed(1, func(gtx C) D {
 									if status != nil && status.Stats != nil {
 										current, unitCurrent := format(int64(status.Stats.CurrentConns), 1000)
@@ -162,11 +169,11 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 
 										total, unitTotal := format(int64(status.Stats.TotalConns), 1000)
 										total = float64(int64(total*10)) / 10
-										return material.Body2(th, fmt.Sprintf("Requests: %s%s / %s%s",
+										return material.Body2(th, fmt.Sprintf("%s%s / %s%s",
 											strconv.FormatFloat(current, 'f', -1, 64), strings.ToLower(unitCurrent),
 											strconv.FormatFloat(total, 'f', -1, 64), strings.ToLower(unitTotal))).Layout(gtx)
 									}
-									return material.Body2(th, "Request: N/A").Layout(gtx)
+									return material.Body2(th, "N/A").Layout(gtx)
 								}),
 								layout.Rigid(func(gtx C) D {
 									if status != nil && status.Stats != nil {
@@ -183,17 +190,21 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
+								layout.Rigid(func(gtx C) D {
+									return icons.IconNavExpandLess.Layout(gtx, color.NRGBA(colornames.Grey800))
+								}),
+								layout.Rigid(layout.Spacer{Width: 5}.Layout),
 								layout.Flexed(1, func(gtx C) D {
 									if status != nil && status.Stats != nil {
-										v, unit := format(int64(status.Stats.InputBytes), 1024)
+										v, unit := format(int64(status.Stats.OutputBytes), 1024)
 										v = float64(int64(v*100)) / 100
-										return material.Body2(th, fmt.Sprintf("In: %s %sB", strconv.FormatFloat(v, 'f', -1, 64), unit)).Layout(gtx)
+										return material.Body2(th, fmt.Sprintf("%s %sB", strconv.FormatFloat(v, 'f', -1, 64), unit)).Layout(gtx)
 									}
-									return material.Body2(th, "In: N/A").Layout(gtx)
+									return material.Body2(th, "N/A").Layout(gtx)
 								}),
 								layout.Rigid(func(gtx C) D {
 									if status != nil && status.Stats != nil {
-										v, unit := format(int64(status.Stats.InputRateBytes), 1024)
+										v, unit := format(int64(status.Stats.OutputRateBytes), 1024)
 										v = float64(int64(v*100)) / 100
 										return material.Body2(th, fmt.Sprintf("%s %sB/s", strconv.FormatFloat(v, 'f', -1, 64), unit)).Layout(gtx)
 									}
@@ -206,17 +217,21 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
+								layout.Rigid(func(gtx C) D {
+									return icons.IconNavExpandMore.Layout(gtx, color.NRGBA(colornames.Grey800))
+								}),
+								layout.Rigid(layout.Spacer{Width: 5}.Layout),
 								layout.Flexed(1, func(gtx C) D {
 									if status != nil && status.Stats != nil {
-										v, unit := format(int64(status.Stats.OutputBytes), 1024)
+										v, unit := format(int64(status.Stats.InputBytes), 1024)
 										v = float64(int64(v*100)) / 100
-										return material.Body2(th, fmt.Sprintf("Out: %s %sB", strconv.FormatFloat(v, 'f', -1, 64), unit)).Layout(gtx)
+										return material.Body2(th, fmt.Sprintf("%s %sB", strconv.FormatFloat(v, 'f', -1, 64), unit)).Layout(gtx)
 									}
-									return material.Body2(th, "Out: N/A").Layout(gtx)
+									return material.Body2(th, "N/A").Layout(gtx)
 								}),
 								layout.Rigid(func(gtx C) D {
 									if status != nil && status.Stats != nil {
-										v, unit := format(int64(status.Stats.OutputRateBytes), 1024)
+										v, unit := format(int64(status.Stats.InputRateBytes), 1024)
 										v = float64(int64(v*100)) / 100
 										return material.Body2(th, fmt.Sprintf("%s %sB/s", strconv.FormatFloat(v, 'f', -1, 64), unit)).Layout(gtx)
 									}

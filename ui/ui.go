@@ -7,6 +7,7 @@ import (
 	"gioui.org/widget/material"
 	"github.com/go-gost/gui/ui/page"
 	"github.com/go-gost/gui/ui/page/home"
+	"github.com/go-gost/gui/ui/page/server"
 )
 
 type C = layout.Context
@@ -23,6 +24,11 @@ func NewUI() *UI {
 
 	router := page.NewRouter()
 	router.Register(page.PageHome, home.NewPage(router))
+	router.Register(page.PageServerEdit, server.NewPage(router))
+
+	router.Goto(page.Route{
+		Path: page.PageHome,
+	})
 
 	return &UI{
 		th:     th,

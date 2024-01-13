@@ -1,21 +1,19 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
 	_ "net"
 	"os"
-	"time"
 
 	"gioui.org/app"
 	_ "gioui.org/app/permission/storage"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"github.com/go-gost/gui/api/client"
 	"github.com/go-gost/gui/api/runner"
+	"github.com/go-gost/gui/api/util"
 	"github.com/go-gost/gui/config"
 	"github.com/go-gost/gui/ui"
 )
@@ -65,14 +63,5 @@ func run(w *app.Window) error {
 func Init() {
 	config.Init()
 
-	cfg := config.Global()
-	if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
-		server := cfg.Servers[cfg.CurrentServer]
-		client.SetDefault(client.NewClient(server.URL, server.Timeout))
-		interval := server.Interval
-		if interval <= 0 {
-			interval = 3 * time.Second
-		}
-		runner.Default().ExecAsync(context.Background(), runner.GetConfigTask("getconfig"), interval)
-	}
+	util.RestartGetConfigTask()
 }

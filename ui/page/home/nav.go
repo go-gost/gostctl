@@ -7,6 +7,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"github.com/go-gost/gui/ui/page"
 	"github.com/go-gost/gui/ui/page/home/list"
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 )
@@ -57,15 +58,17 @@ type navButton struct {
 	Background   color.NRGBA
 	Text         string
 	List         list.List
+	Create       page.PagePath
 }
 
-func NavButton(text string, list list.List) *navButton {
+func NavButton(text string, list list.List, create page.PagePath) *navButton {
 	return &navButton{
 		CornerRadius: 18,
 		BorderWidth:  1,
 		BorderColor:  color.NRGBA(colornames.Grey200),
 		Text:         text,
 		List:         list,
+		Create:       create,
 	}
 }
 

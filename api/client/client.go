@@ -37,6 +37,9 @@ type Client struct {
 }
 
 func NewClient(url string, timeout time.Duration) *Client {
+	if !strings.HasPrefix(url, "http") {
+		url = "http://" + url
+	}
 	if !strings.HasSuffix(url, "/") {
 		url += "/"
 	}

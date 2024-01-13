@@ -13,18 +13,14 @@ type Task interface {
 	Run(ctx context.Context) error
 }
 
-type getConfigTask struct {
-	id string
-}
+type getConfigTask struct{}
 
-func GetConfigTask(id string) Task {
-	return &getConfigTask{
-		id: id,
-	}
+func GetConfigTask() Task {
+	return &getConfigTask{}
 }
 
 func (t *getConfigTask) ID() string {
-	return t.id
+	return "get_config"
 }
 
 func (t *getConfigTask) Run(ctx context.Context) error {
