@@ -89,7 +89,7 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 										Alignment: layout.Middle,
 									}.Layout(gtx,
 										layout.Rigid(func(gtx C) D {
-											gtx.Constraints.Min.X = gtx.Dp(16)
+											gtx.Constraints.Min.X = gtx.Dp(14)
 											return icons.IconActionUpdate.Layout(gtx, color.NRGBA(colornames.Grey800))
 										}),
 										layout.Rigid(layout.Spacer{Width: 5}.Layout),
@@ -103,7 +103,7 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 										Alignment: layout.Middle,
 									}.Layout(gtx,
 										layout.Rigid(func(gtx C) D {
-											gtx.Constraints.Min.X = gtx.Dp(16)
+											gtx.Constraints.Min.X = gtx.Dp(14)
 											return icons.IconActionHourGlassEmpty.Layout(gtx, color.NRGBA(colornames.Grey800))
 										}),
 										layout.Rigid(layout.Spacer{Width: 5}.Layout),
@@ -115,7 +115,7 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 						layout.Rigid(layout.Spacer{Width: 10}.Layout),
 						layout.Rigid(func(gtx C) D {
 							if index == cfg.CurrentServer {
-								gtx.Constraints.Min.X = gtx.Dp(15)
+								gtx.Constraints.Min.X = gtx.Dp(12)
 								return icons.IconCircle.Layout(gtx, color.NRGBA(colornames.Green500))
 							}
 							return D{}

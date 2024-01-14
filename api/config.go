@@ -14,6 +14,9 @@ func init() {
 }
 
 func SetConfig(cfg *Config) {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	defaultConfig.Store(cfg)
 }
 

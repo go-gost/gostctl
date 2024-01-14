@@ -39,12 +39,9 @@ func Init() {
 
 	slog.Info(fmt.Sprintf("appDir: %s", configDir))
 
-	if err := global.Load(); err != nil {
+	if err := global.load(); err != nil {
 		slog.Error(fmt.Sprintf("load config: %v", err))
 		if _, ok := err.(*os.PathError); ok {
-			global.Servers = []Server{
-				{Name: "pi", URL: "http://192.168.100.100:8000", Interval: 3 * time.Second, Timeout: 10 * time.Second},
-			}
 			global.Write()
 		}
 	}
@@ -189,7 +186,7 @@ type Config struct {
 	Log           *Log
 }
 
-func (c *Config) Load() error {
+func (c *Config) load() error {
 	f, err := os.Open(filepath.Join(configDir, configFile))
 	if err != nil {
 		return err
@@ -200,6 +197,10 @@ func (c *Config) Load() error {
 }
 
 func (c *Config) Write() error {
+	if c == nil {
+		c = &Config{}
+	}
+
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	defer enc.Close()

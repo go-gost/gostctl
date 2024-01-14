@@ -266,20 +266,20 @@ func format(n int64, scale int64) (v float64, unit string) {
 }
 
 var (
-	dunits = []string{"s", "m", "h", "d"}
+	dunits = []string{"s", "m", "h"}
 )
 
 func formatDuration(d time.Duration) (v int64, unit string) {
-	n := int64(d.Seconds())
-	if n <= 0 {
-		unit = dunits[0]
+	if d.Hours() >= 24 {
+		v = int64(d.Hours() / 24)
+		unit = "d"
 		return
 	}
 
 	var scale int64 = 60
-
+	n := int64(d.Seconds())
 	for i := range dunits {
-		v = n
+		v = n % scale
 		unit = dunits[i]
 
 		if n = n / scale; n == 0 {

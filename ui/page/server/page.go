@@ -27,6 +27,7 @@ type serverPage struct {
 	router *page.Router
 
 	btnBack   widget.Clickable
+	btnActive widget.Clickable
 	btnDelete widget.Clickable
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
@@ -45,9 +46,11 @@ type serverPage struct {
 	btnPasswordVisible widget.Clickable
 	passwordVisible    bool
 
-	edit   bool
-	create bool
-	id     string
+	id            string
+	edit          bool
+	create        bool
+	deleteConfirm bool
+	active        bool
 }
 
 func NewPage(r *page.Router) page.Page {
@@ -106,11 +109,17 @@ func (p *serverPage) Init(opts ...page.PageOption) {
 		p.create = true
 		p.name.ReadOnly = false
 	}
+	p.deleteConfirm = false
 
+	p.active = false
+	cfg := config.Global()
 	var server config.Server
-	for _, srv := range config.Global().Servers {
+	for i, srv := range cfg.Servers {
 		if srv.Name == p.id {
 			server = srv
+			if cfg.CurrentServer == i {
+				p.active = true
+			}
 			break
 		}
 	}
@@ -146,18 +155,26 @@ func (p *serverPage) Layout(gtx C, th *material.Theme) D {
 	if p.btnBack.Clicked(gtx) {
 		p.router.Back()
 	}
+	if p.btnActive.Clicked(gtx) && !p.active {
+		p.activate()
+		p.active = true
+	}
 	if p.btnEdit.Clicked(gtx) {
 		p.edit = true
 	}
 	if p.btnSave.Clicked(gtx) {
 		if p.save() {
-			util.RestartGetConfigTask()
 			p.router.Back()
 		}
 	}
+
 	if p.btnDelete.Clicked(gtx) {
-		p.delete()
-		p.router.Back()
+		if p.deleteConfirm {
+			p.delete()
+			p.router.Back()
+		} else {
+			p.deleteConfirm = true
+		}
 	}
 
 	return layout.Flex{
@@ -191,7 +208,23 @@ func (p *serverPage) Layout(gtx C, th *material.Theme) D {
 						if p.create {
 							return D{}
 						}
+						btn := material.IconButton(th, &p.btnActive, icons.IconCircle, "Active")
+						btn.Background = th.Bg
+						if p.active {
+							btn.Color = color.NRGBA(colornames.Green500)
+						} else {
+							btn.Color = th.Fg
+						}
+						return btn.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx C) D {
+						if p.create {
+							return D{}
+						}
 						btn := material.IconButton(th, &p.btnDelete, icons.IconDelete, "Delete")
+						if p.deleteConfirm {
+							btn = material.IconButton(th, &p.btnDelete, icons.IconDeleteForever, "Delete")
+						}
 						btn.Color = th.Fg
 						btn.Background = th.Bg
 						return btn.Layout(gtx)
@@ -344,6 +377,19 @@ func (p *serverPage) layout(gtx C, th *material.Theme) D {
 	})
 }
 
+func (p *serverPage) activate() {
+	cfg := config.Global()
+	for i, server := range cfg.Servers {
+		if server.Name == p.id {
+			cfg.CurrentServer = i
+			break
+		}
+	}
+	config.Set(cfg)
+	cfg.Write()
+	util.RestartGetConfigTask()
+}
+
 func (p *serverPage) save() bool {
 	server := config.Server{
 		Name: strings.TrimSpace(p.name.Text()),
@@ -403,6 +449,8 @@ func (p *serverPage) save() bool {
 	config.Set(cfg)
 	cfg.Write()
 
+	util.RestartGetConfigTask()
+
 	return true
 }
 
@@ -419,4 +467,8 @@ func (p *serverPage) delete() {
 	cfg.Servers = servers
 	config.Set(cfg)
 	cfg.Write()
+
+	if p.active {
+		util.RestartGetConfigTask()
+	}
 }

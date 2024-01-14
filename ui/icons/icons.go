@@ -41,6 +41,7 @@ var (
 	IconForward              = mustIcon(icons.NavigationChevronRight)
 	IconEdit                 = mustIcon(icons.EditorModeEdit)
 	IconDelete               = mustIcon(icons.ActionDelete)
+	IconDeleteForever        = mustIcon(icons.ActionDeleteForever)
 	IconStart                = mustIcon(icons.AVPlayArrow)
 	IconStop                 = mustIcon(icons.AVStop)
 	IconBack                 = mustIcon(icons.NavigationArrowBack)
