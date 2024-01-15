@@ -41,10 +41,6 @@ func Service(r *page.Router) List {
 
 func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 	cfg := api.GetConfig()
-	if cfg == nil {
-		cfg = &api.Config{}
-	}
-
 	services := cfg.Services
 
 	if len(services) > len(l.states) {
@@ -54,6 +50,13 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 	}
 
 	return l.list.Layout(gtx, len(services), func(gtx C, index int) D {
+		if l.states[index].btn.Clicked(gtx) {
+			l.router.Goto(page.Route{
+				Path: page.PageServiceEdit,
+				ID:   services[index].Name,
+			})
+		}
+
 		service := services[index]
 		handler := service.Handler
 		if handler == nil {

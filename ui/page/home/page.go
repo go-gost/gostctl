@@ -45,13 +45,14 @@ func NewPage(r *page.Router) page.Page {
 }
 
 func (p *homePage) Init(opts ...page.PageOption) {
-
 }
 
-func (p *homePage) Layout(gtx C, th *material.Theme) D {
+func (p *homePage) Layout(gtx C) D {
 	if p.btnCreate.Clicked(gtx) {
 		p.router.Goto(page.Route{Path: p.nav.btns[p.nav.current].Create})
 	}
+
+	th := p.router.Theme
 
 	return layout.Stack{
 		Alignment: layout.SE,
@@ -73,10 +74,12 @@ func (p *homePage) Layout(gtx C, th *material.Theme) D {
 							Spacing:   layout.SpaceBetween,
 							Alignment: layout.Middle,
 						}.Layout(gtx,
-							layout.Rigid(func(gtx C) D {
-								return icons.IconApp.Layout(gtx)
-							}),
-							layout.Rigid(layout.Spacer{Width: 5}.Layout),
+							/*
+								layout.Rigid(func(gtx C) D {
+									return icons.IconApp.Layout(gtx)
+								}),
+							*/
+							layout.Rigid(layout.Spacer{Width: 10}.Layout),
 							layout.Rigid(func(gtx C) D {
 								label := material.H6(th, "GOST")
 								label.Font.Weight = font.Bold

@@ -20,11 +20,13 @@ type Router struct {
 	pages   map[PagePath]Page
 	stack   routeStack
 	current Route
+	*material.Theme
 }
 
-func NewRouter() *Router {
+func NewRouter(th *material.Theme) *Router {
 	r := &Router{
 		pages: make(map[PagePath]Page),
+		Theme: th,
 	}
 
 	return r
@@ -61,7 +63,7 @@ func (r *Router) Back() {
 	slog.Debug(fmt.Sprintf("back to %s %s", route.Path, route.ID), "kind", "router")
 }
 
-func (r *Router) Layout(gtx C, th *material.Theme) D {
+func (r *Router) Layout(gtx C) D {
 	return layout.Background{}.Layout(gtx,
 		func(gtx C) D {
 			return D{
@@ -73,7 +75,7 @@ func (r *Router) Layout(gtx C, th *material.Theme) D {
 			if page == nil {
 				page = r.pages[PageHome]
 			}
-			return page.Layout(gtx, th)
+			return page.Layout(gtx)
 		},
 	)
 }

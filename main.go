@@ -24,7 +24,7 @@ func main() {
 	go func() {
 		w := app.NewWindow(
 			app.Title("GOST"),
-			app.MinSize(800, 600),
+			// app.MinSize(800, 600),
 		)
 		err := run(w)
 		if err != nil {

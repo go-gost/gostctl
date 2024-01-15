@@ -2,7 +2,6 @@ package page
 
 import (
 	"gioui.org/layout"
-	"gioui.org/widget/material"
 )
 
 type PagePath string
@@ -27,5 +26,5 @@ func WithPageID(id string) PageOption {
 
 type Page interface {
 	Init(opts ...PageOption)
-	Layout(gtx layout.Context, th *material.Theme) layout.Dimensions
+	Layout(gtx layout.Context) layout.Dimensions
 }

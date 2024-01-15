@@ -151,7 +151,7 @@ func (p *serverPage) Init(opts ...page.PageOption) {
 
 }
 
-func (p *serverPage) Layout(gtx C, th *material.Theme) D {
+func (p *serverPage) Layout(gtx C) D {
 	if p.btnBack.Clicked(gtx) {
 		p.router.Back()
 	}
@@ -176,6 +176,8 @@ func (p *serverPage) Layout(gtx C, th *material.Theme) D {
 			p.deleteConfirm = true
 		}
 	}
+
+	th := p.router.Theme
 
 	return layout.Flex{
 		Axis: layout.Vertical,
@@ -245,7 +247,6 @@ func (p *serverPage) Layout(gtx C, th *material.Theme) D {
 				)
 			})
 		}),
-		layout.Rigid(layout.Spacer{Height: 10}.Layout),
 		layout.Flexed(1, func(gtx C) D {
 			inset := layout.Inset{
 				Top:    5,
@@ -259,8 +260,8 @@ func (p *serverPage) Layout(gtx C, th *material.Theme) D {
 			return inset.Layout(gtx, func(gtx C) D {
 				return p.list.Layout(gtx, 1, func(gtx C, index int) D {
 					return layout.Inset{
-						Top:    10,
-						Bottom: 10,
+						Top:    5,
+						Bottom: 5,
 						Left:   10,
 						Right:  10,
 					}.Layout(gtx, func(gtx C) D {
