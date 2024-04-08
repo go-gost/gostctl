@@ -25,7 +25,7 @@ func init() {
 
 	IconApp = &widget.Image{
 		Src: paint.NewImageOp(img),
-		Fit: widget.Unscaled,
+		Fit: widget.ScaleDown,
 	}
 }
 
@@ -35,6 +35,7 @@ var (
 	IconHome                 = mustIcon(icons.ActionHome)
 	IconFavorite             = mustIcon(icons.ActionFavorite)
 	IconAdd                  = mustIcon(icons.ContentAdd)
+	IconRemove               = mustIcon(icons.ContentRemove)
 	IconSettings             = mustIcon(icons.ActionSettings)
 	IconDone                 = mustIcon(icons.ActionDone)
 	IconRadioButtonUnchecked = mustIcon(icons.ToggleRadioButtonUnchecked)

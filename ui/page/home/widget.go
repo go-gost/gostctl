@@ -8,7 +8,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
-	"github.com/go-gost/gui/ui/icons"
+	"github.com/go-gost/gostctl/ui/icons"
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 )
 

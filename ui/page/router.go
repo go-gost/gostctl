@@ -5,7 +5,11 @@ import (
 	"log/slog"
 
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/unit"
 	"gioui.org/widget/material"
+	"github.com/go-gost/gostctl/ui/theme"
 )
 
 type C = layout.Context
@@ -46,7 +50,7 @@ func (r *Router) Goto(route Route) {
 	r.stack.Push(route)
 
 	page.Init(WithPageID(route.ID))
-	slog.Debug(fmt.Sprintf("go to %s %s", route.Path, route.ID), "kind", "router")
+	slog.Debug(fmt.Sprintf("go to %s", route.Path), "kind", "router", "route.id", route.ID)
 }
 
 func (r *Router) Back() {
@@ -60,13 +64,24 @@ func (r *Router) Back() {
 	r.current = route
 
 	page.Init(WithPageID(route.ID))
-	slog.Debug(fmt.Sprintf("back to %s %s", route.Path, route.ID), "kind", "router")
+	slog.Debug(fmt.Sprintf("back to %s", route.Path), "kind", "router", "route.id", route.ID)
 }
 
 func (r *Router) Layout(gtx C) D {
+	r.Theme.Palette = theme.Current().Material
+
 	return layout.Background{}.Layout(gtx,
 		func(gtx C) D {
-			return D{
+			defer clip.Rect{
+				Max: gtx.Constraints.Max,
+			}.Op().Push(gtx.Ops).Pop()
+
+			paint.ColorOp{
+				Color: r.Theme.Bg,
+			}.Add(gtx.Ops)
+			paint.PaintOp{}.Add(gtx.Ops)
+
+			return layout.Dimensions{
 				Size: gtx.Constraints.Max,
 			}
 		},
@@ -75,7 +90,16 @@ func (r *Router) Layout(gtx C) D {
 			if page == nil {
 				page = r.pages[PageHome]
 			}
-			return page.Layout(gtx)
+
+			inset := layout.Inset{}
+			width := unit.Dp(800)
+			if x := gtx.Metric.PxToDp(gtx.Constraints.Max.X); x > width {
+				inset.Left = (x - width) / 2
+				inset.Right = inset.Left
+			}
+			return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return page.Layout(gtx)
+			})
 		},
 	)
 }

@@ -220,6 +220,18 @@ type RecorderObject struct {
 	Metadata map[string]any
 }
 
+func (p *RecorderObject) copy() *RecorderObject {
+	if p == nil {
+		return nil
+	}
+
+	cfg := &RecorderObject{}
+	*cfg = *p
+	cfg.Metadata = copyMetadata(p.Metadata)
+
+	return cfg
+}
+
 type LimiterConfig struct {
 	Name   string        `json:"name"`
 	Limits []string      `yaml:",omitempty" json:"limits,omitempty"`
@@ -246,6 +258,28 @@ type ListenerConfig struct {
 	Metadata   map[string]any    `yaml:",omitempty" json:"metadata,omitempty"`
 }
 
+func (p *ListenerConfig) copy() *ListenerConfig {
+	if p == nil {
+		return nil
+	}
+
+	cfg := &ListenerConfig{}
+	*cfg = *p
+
+	cfg.ChainGroup = p.ChainGroup.copy()
+	if p.Auth != nil {
+		cfg.Auth = &AuthConfig{}
+		*cfg.Auth = *p.Auth
+	}
+	if p.TLS != nil {
+		cfg.TLS = &TLSConfig{}
+		*cfg.TLS = *p.TLS
+	}
+	cfg.Metadata = copyMetadata(p.Metadata)
+
+	return cfg
+}
+
 type HandlerConfig struct {
 	Type       string            `json:"type"`
 	Retries    int               `yaml:",omitempty" json:"retries,omitempty"`
@@ -260,10 +294,54 @@ type HandlerConfig struct {
 	Metadata   map[string]any    `yaml:",omitempty" json:"metadata,omitempty"`
 }
 
+func (p *HandlerConfig) copy() *HandlerConfig {
+	if p == nil {
+		return nil
+	}
+
+	cfg := &HandlerConfig{}
+	*cfg = *p
+	cfg.ChainGroup = p.ChainGroup.copy()
+	if p.Auth != nil {
+		cfg.Auth = &AuthConfig{}
+		*cfg.Auth = *p.Auth
+	}
+	if p.TLS != nil {
+		cfg.TLS = &TLSConfig{}
+		*cfg.TLS = *p.TLS
+	}
+	cfg.Metadata = copyMetadata(p.Metadata)
+
+	return cfg
+}
+
 type ForwarderConfig struct {
 	Name     string               `yaml:",omitempty" json:"name,omitempty"`
 	Selector *SelectorConfig      `yaml:",omitempty" json:"selector,omitempty"`
 	Nodes    []*ForwardNodeConfig `json:"nodes"`
+}
+
+func (p *ForwarderConfig) copy() *ForwarderConfig {
+	if p == nil {
+		return nil
+	}
+
+	cfg := &ForwarderConfig{}
+	*cfg = *p
+
+	if p.Selector != nil {
+		cfg.Selector = &SelectorConfig{}
+		*cfg.Selector = *p.Selector
+	}
+
+	if p.Nodes != nil {
+		cfg.Nodes = nil
+		for _, node := range p.Nodes {
+			cfg.Nodes = append(cfg.Nodes, node.copy())
+		}
+	}
+
+	return cfg
 }
 
 type ForwardNodeConfig struct {
@@ -280,9 +358,39 @@ type ForwardNodeConfig struct {
 	Auth     *AuthConfig     `yaml:",omitempty" json:"auth,omitempty"`
 }
 
+func (p *ForwardNodeConfig) copy() *ForwardNodeConfig {
+	if p == nil {
+		return nil
+	}
+
+	cfg := &ForwardNodeConfig{}
+	*cfg = *p
+
+	if p.HTTP != nil {
+		cfg.HTTP = &HTTPNodeConfig{}
+		*cfg.HTTP = *p.HTTP
+	}
+	if p.TLS != nil {
+		cfg.TLS = &TLSNodeConfig{}
+		*cfg.TLS = *p.TLS
+	}
+	if p.Auth != nil {
+		cfg.Auth = &AuthConfig{}
+		*cfg.Auth = *p.Auth
+	}
+	return cfg
+}
+
+type HTTPURLRewriteConfig struct {
+	Match       string
+	Replacement string
+}
+
 type HTTPNodeConfig struct {
-	Host   string            `yaml:",omitempty" json:"host,omitempty"`
-	Header map[string]string `yaml:",omitempty" json:"header,omitempty"`
+	Host    string                 `yaml:",omitempty" json:"host,omitempty"`
+	Header  map[string]string      `yaml:",omitempty" json:"header,omitempty"`
+	Auth    *AuthConfig            `yaml:",omitempty" json:"auth,omitempty"`
+	Rewrite []HTTPURLRewriteConfig `yaml:",omitempty" json:"rewrite,omitempty"`
 }
 
 type TLSNodeConfig struct {
@@ -337,6 +445,33 @@ type ServiceConfig struct {
 	Status *ServiceStatus `yaml:",omitempty" json:"status,omitempty"`
 }
 
+func (p *ServiceConfig) Copy() *ServiceConfig {
+	if p == nil {
+		return nil
+	}
+	cfg := &ServiceConfig{}
+	*cfg = *p
+
+	if p.SockOpts != nil {
+		cfg.SockOpts = &SockOptsConfig{}
+		*cfg.SockOpts = *p.SockOpts
+	}
+
+	if p.Recorders != nil {
+		cfg.Recorders = nil
+		for _, recorder := range p.Recorders {
+			cfg.Recorders = append(cfg.Recorders, recorder.copy())
+		}
+	}
+
+	cfg.Handler = p.Handler.copy()
+	cfg.Listener = p.Listener.copy()
+	cfg.Forwarder = p.Forwarder.copy()
+	cfg.Metadata = copyMetadata(p.Metadata)
+
+	return cfg
+}
+
 type ServiceStatus struct {
 	CreateTime int64          `yaml:"createTime" json:"createTime"`
 	State      string         `yaml:"state" json:"state"`
@@ -370,6 +505,17 @@ type ChainConfig struct {
 type ChainGroupConfig struct {
 	Chains   []string        `yaml:",omitempty" json:"chains,omitempty"`
 	Selector *SelectorConfig `yaml:",omitempty" json:"selector,omitempty"`
+}
+
+func (p *ChainGroupConfig) copy() *ChainGroupConfig {
+	if p == nil {
+		return nil
+	}
+
+	cfg := &ChainGroupConfig{}
+	*cfg = *p
+
+	return cfg
 }
 
 type HopConfig struct {
@@ -489,4 +635,27 @@ type MetricsConfig struct {
 	Path   string      `yaml:",omitempty" json:"path,omitempty"`
 	Auth   *AuthConfig `yaml:",omitempty" json:"auth,omitempty"`
 	Auther string      `yaml:",omitempty" json:"auther,omitempty"`
+}
+
+func copyStrings(ss []string) []string {
+	if ss == nil {
+		return nil
+	}
+	v := make([]string, len(ss))
+	copy(v, ss)
+
+	return v
+}
+
+func copyMetadata(md map[string]any) map[string]any {
+	if md == nil {
+		return nil
+	}
+
+	m := make(map[string]any)
+	for k, v := range md {
+		m[k] = v
+	}
+
+	return m
 }

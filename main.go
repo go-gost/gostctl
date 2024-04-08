@@ -6,16 +6,16 @@ import (
 	"log/slog"
 	_ "net"
 	"os"
+	"time"
 
 	"gioui.org/app"
 	_ "gioui.org/app/permission/storage"
-	"gioui.org/io/system"
-	"gioui.org/layout"
 	"gioui.org/op"
-	"github.com/go-gost/gui/api/runner"
-	"github.com/go-gost/gui/api/util"
-	"github.com/go-gost/gui/config"
-	"github.com/go-gost/gui/ui"
+	"github.com/go-gost/gostctl/api/runner"
+	"github.com/go-gost/gostctl/api/util"
+	"github.com/go-gost/gostctl/config"
+	"github.com/go-gost/gostctl/ui"
+	_ "github.com/go-gost/gostctl/winres"
 )
 
 func main() {
@@ -37,11 +37,23 @@ func main() {
 
 func run(w *app.Window) error {
 	go func() {
-		for e := range runner.Default().Event() {
-			if e.Err == nil {
-				w.Invalidate()
-			} else {
-				slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
+		for e := range runner.Event() {
+			if e.TaskID == runner.TaskGetConfig {
+				cfg := config.Get()
+				if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
+					server := cfg.Servers[cfg.CurrentServer]
+					if e.Err != nil {
+						slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
+						server.SetState(config.ServerError)
+						server.AddEvent(config.ServerEvent{
+							Time: time.Now(),
+							Msg:  e.Err.Error(),
+						})
+					} else {
+						server.SetState(config.ServerReady)
+					}
+					w.Invalidate()
+				}
 			}
 		}
 	}()
@@ -50,10 +62,10 @@ func run(w *app.Window) error {
 	var ops op.Ops
 	for {
 		switch e := w.NextEvent().(type) {
-		case system.DestroyEvent:
+		case app.DestroyEvent:
 			return e.Err
-		case system.FrameEvent:
-			gtx := layout.NewContext(&ops, e)
+		case app.FrameEvent:
+			gtx := app.NewContext(&ops, e)
 			ui.Layout(gtx)
 			e.Frame(gtx.Ops)
 		}

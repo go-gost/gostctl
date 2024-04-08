@@ -7,9 +7,10 @@ import (
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-	"github.com/go-gost/gui/config"
-	"github.com/go-gost/gui/ui/icons"
-	"github.com/go-gost/gui/ui/page"
+	"github.com/go-gost/gostctl/config"
+	"github.com/go-gost/gostctl/ui/icons"
+	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/theme"
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 )
 
@@ -34,7 +35,7 @@ func Server(r *page.Router) List {
 }
 
 func (l *serverList) Layout(gtx C, th *material.Theme) D {
-	cfg := config.Global()
+	cfg := config.Get()
 	servers := cfg.Servers
 	if len(servers) > len(l.states) {
 		states := l.states
@@ -51,22 +52,17 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 		}
 
 		return layout.Inset{
-			Top:    5,
-			Bottom: 5,
-			Left:   10,
-			Right:  10,
+			Top:    8,
+			Bottom: 8,
+			Left:   8,
+			Right:  8,
 		}.Layout(gtx, func(gtx C) D {
 			return material.ButtonLayoutStyle{
-				Background:   color.NRGBA(colornames.BlueGrey50),
-				CornerRadius: 10,
+				Background:   theme.Current().ListBg,
+				CornerRadius: 12,
 				Button:       &l.states[index].btn,
 			}.Layout(gtx, func(gtx C) D {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-					Left:   10,
-					Right:  10,
-				}.Layout(gtx, func(gtx C) D {
+				return layout.UniformInset(16).Layout(gtx, func(gtx C) D {
 					return layout.Flex{
 						Alignment: layout.Middle,
 						Spacing:   layout.SpaceBetween,
@@ -80,42 +76,45 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 									label.Font.Weight = font.SemiBold
 									return label.Layout(gtx)
 								}),
-								layout.Rigid(layout.Spacer{Height: 10}.Layout),
+								layout.Rigid(layout.Spacer{Height: 4}.Layout),
 								layout.Rigid(material.Body2(th, servers[index].URL).Layout),
-								layout.Rigid(layout.Spacer{Height: 5}.Layout),
+								layout.Rigid(layout.Spacer{Height: 4}.Layout),
 								layout.Rigid(func(gtx C) D {
 									return layout.Flex{
 										Spacing:   layout.SpaceBetween,
 										Alignment: layout.Middle,
 									}.Layout(gtx,
 										layout.Rigid(func(gtx C) D {
-											gtx.Constraints.Min.X = gtx.Dp(14)
-											return icons.IconActionUpdate.Layout(gtx, color.NRGBA(colornames.Grey800))
+											gtx.Constraints.Min.X = gtx.Dp(16)
+											return icons.IconActionUpdate.Layout(gtx, th.Fg)
 										}),
-										layout.Rigid(layout.Spacer{Width: 5}.Layout),
+										layout.Rigid(layout.Spacer{Width: 4}.Layout),
 										layout.Flexed(1, material.Body2(th, servers[index].Interval.String()).Layout),
 									)
 								}),
-								layout.Rigid(layout.Spacer{Height: 5}.Layout),
+								layout.Rigid(layout.Spacer{Height: 4}.Layout),
 								layout.Rigid(func(gtx C) D {
 									return layout.Flex{
 										Spacing:   layout.SpaceBetween,
 										Alignment: layout.Middle,
 									}.Layout(gtx,
 										layout.Rigid(func(gtx C) D {
-											gtx.Constraints.Min.X = gtx.Dp(14)
-											return icons.IconActionHourGlassEmpty.Layout(gtx, color.NRGBA(colornames.Grey800))
+											gtx.Constraints.Min.X = gtx.Dp(16)
+											return icons.IconActionHourGlassEmpty.Layout(gtx, th.Fg)
 										}),
-										layout.Rigid(layout.Spacer{Width: 5}.Layout),
+										layout.Rigid(layout.Spacer{Width: 4}.Layout),
 										layout.Flexed(1, material.Body2(th, servers[index].Timeout.String()).Layout),
 									)
 								}),
 							)
 						}),
-						layout.Rigid(layout.Spacer{Width: 10}.Layout),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx C) D {
 							if index == cfg.CurrentServer {
 								gtx.Constraints.Min.X = gtx.Dp(12)
+								if state := servers[index].State(); state == config.ServerError {
+									return icons.IconCircle.Layout(gtx, color.NRGBA(colornames.Red500))
+								}
 								return icons.IconCircle.Layout(gtx, color.NRGBA(colornames.Green500))
 							}
 							return D{}

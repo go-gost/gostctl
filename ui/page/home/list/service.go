@@ -12,9 +12,11 @@ import (
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-	"github.com/go-gost/gui/api"
-	"github.com/go-gost/gui/ui/icons"
-	"github.com/go-gost/gui/ui/page"
+	"github.com/go-gost/gostctl/api"
+	"github.com/go-gost/gostctl/ui/i18n"
+	"github.com/go-gost/gostctl/ui/icons"
+	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/theme"
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 )
 
@@ -73,22 +75,17 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 		status := service.Status
 
 		return layout.Inset{
-			Top:    5,
-			Bottom: 5,
-			Left:   10,
-			Right:  10,
+			Top:    8,
+			Bottom: 8,
+			Left:   8,
+			Right:  8,
 		}.Layout(gtx, func(gtx C) D {
 			return material.ButtonLayoutStyle{
-				Background:   color.NRGBA(colornames.BlueGrey50),
-				CornerRadius: 10,
+				Background:   theme.Current().ListBg,
+				CornerRadius: 12,
 				Button:       &l.states[index].btn,
 			}.Layout(gtx, func(gtx C) D {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-					Left:   10,
-					Right:  10,
-				}.Layout(gtx, func(gtx C) D {
+				return layout.UniformInset(16).Layout(gtx, func(gtx C) D {
 					return layout.Flex{
 						Axis: layout.Vertical,
 					}.Layout(gtx,
@@ -100,21 +97,23 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 							}
 
 							c := colornames.Grey500
+							key := i18n.Unknown
+
 							switch state {
 							case "running":
 								c = colornames.DeepOrange500
-								state = "Running"
+								key = i18n.Running
 							case "ready":
 								c = colornames.Green500
-								state = "Ready"
+								key = i18n.Ready
 							case "failed":
 								c = colornames.Red500
-								state = "Failed"
+								key = i18n.Failed
 							case "closed":
 								c = colornames.Grey500
-								state = "Closed"
+								key = i18n.Closed
 							default:
-								state = "Unknown"
+								key = i18n.Unknown
 							}
 
 							return layout.Flex{
@@ -126,16 +125,16 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 									label.Font.Weight = font.SemiBold
 									return label.Layout(gtx)
 								}),
-								layout.Rigid(layout.Spacer{Width: 5}.Layout),
+								layout.Rigid(layout.Spacer{Width: 4}.Layout),
 								layout.Rigid(func(gtx C) D {
-									gtx.Constraints.Min.X = gtx.Dp(10)
+									gtx.Constraints.Min.X = gtx.Dp(12)
 									return icons.IconCircle.Layout(gtx, color.NRGBA(c))
 								}),
-								layout.Rigid(layout.Spacer{Width: 5}.Layout),
-								layout.Rigid(material.Body2(th, state).Layout),
+								layout.Rigid(layout.Spacer{Width: 4}.Layout),
+								layout.Rigid(material.Body2(th, key.Value()).Layout),
 							)
 						}),
-						layout.Rigid(layout.Spacer{Height: 10}.Layout),
+						layout.Rigid(layout.Spacer{Height: 4}.Layout),
 						layout.Rigid(func(gtx C) D {
 							return layout.Flex{
 								Alignment: layout.Middle,
@@ -155,16 +154,16 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 							)
 						}),
 						// layout.Rigid(material.Body2(th, fmt.Sprintf("Type: %s, %s", handler.Type, listener.Type)).Layout),
-						layout.Rigid(layout.Spacer{Height: 10}.Layout),
+						layout.Rigid(layout.Spacer{Height: 4}.Layout),
 						layout.Rigid(func(gtx C) D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
 								layout.Rigid(func(gtx C) D {
-									return icons.IconActionCode.Layout(gtx, color.NRGBA(colornames.Grey800))
+									return icons.IconActionCode.Layout(gtx, th.Fg)
 								}),
-								layout.Rigid(layout.Spacer{Width: 5}.Layout),
+								layout.Rigid(layout.Spacer{Width: 4}.Layout),
 								layout.Flexed(1, func(gtx C) D {
 									if status != nil && status.Stats != nil {
 										current, unitCurrent := format(int64(status.Stats.CurrentConns), 1000)
@@ -188,15 +187,16 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 								}),
 							)
 						}),
+						layout.Rigid(layout.Spacer{Height: 4}.Layout),
 						layout.Rigid(func(gtx C) D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
 								layout.Rigid(func(gtx C) D {
-									return icons.IconNavExpandLess.Layout(gtx, color.NRGBA(colornames.Grey800))
+									return icons.IconNavExpandLess.Layout(gtx, th.Fg)
 								}),
-								layout.Rigid(layout.Spacer{Width: 5}.Layout),
+								layout.Rigid(layout.Spacer{Width: 4}.Layout),
 								layout.Flexed(1, func(gtx C) D {
 									if status != nil && status.Stats != nil {
 										v, unit := format(int64(status.Stats.OutputBytes), 1024)
@@ -215,15 +215,16 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 								}),
 							)
 						}),
+						layout.Rigid(layout.Spacer{Height: 4}.Layout),
 						layout.Rigid(func(gtx C) D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
 								layout.Rigid(func(gtx C) D {
-									return icons.IconNavExpandMore.Layout(gtx, color.NRGBA(colornames.Grey800))
+									return icons.IconNavExpandMore.Layout(gtx, th.Fg)
 								}),
-								layout.Rigid(layout.Spacer{Width: 5}.Layout),
+								layout.Rigid(layout.Spacer{Width: 4}.Layout),
 								layout.Flexed(1, func(gtx C) D {
 									if status != nil && status.Stats != nil {
 										v, unit := format(int64(status.Stats.InputBytes), 1024)

@@ -1,16 +1,21 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/go-gost/gui/api"
+	"github.com/go-gost/gostctl/api"
+)
+
+const (
+	uriConfig  = "/config"
+	uriService = uriConfig + "/services"
 )
 
 var (
@@ -65,9 +70,7 @@ func NewClient(url string, opts ...Option) *Client {
 		if !strings.HasPrefix(url, "http") {
 			url = "http://" + url
 		}
-		if !strings.HasSuffix(url, "/") {
-			url += "/"
-		}
+		url = strings.TrimSuffix(url, "/")
 	}
 
 	return &Client{
@@ -79,16 +82,9 @@ func NewClient(url string, opts ...Option) *Client {
 	}
 }
 
-func (c *Client) GetConfig(ctx context.Context) (*api.Config, error) {
-	if c.url == "" {
-		return &api.Config{}, nil
-	}
-
-	url := c.url + "config"
-	// slog.Debug(fmt.Sprintf("GET %s", url))
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
+func (c *Client) do(req *http.Request) (io.ReadCloser, error) {
+	if req == nil {
+		return nil, nil
 	}
 
 	if c.userinfo != nil {
@@ -101,16 +97,14 @@ func (c *Client) GetConfig(ctx context.Context) (*api.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(resp.Status)
+		defer resp.Body.Close()
+
+		var rsp api.Response
+		json.NewDecoder(resp.Body).Decode(&rsp)
+		return nil, fmt.Errorf("%d %d %s", resp.StatusCode, rsp.Code, rsp.Msg)
 	}
 
-	cfg := &api.Config{}
-	if err := json.NewDecoder(resp.Body).Decode(cfg); err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
+	return resp.Body, nil
 }

@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -10,12 +12,8 @@ var (
 	runner = NewRunner()
 )
 
-func Default() *Runner {
-	return runner
-}
-
 type TaskEvent struct {
-	TaskID string
+	TaskID TaskID
 	Err    error
 }
 
@@ -27,6 +25,7 @@ type taskState struct {
 type Options struct {
 	Async    bool
 	Interval time.Duration
+	Cancel   bool
 }
 
 type Option func(opts *Options)
@@ -43,16 +42,34 @@ func WithInterval(interval time.Duration) Option {
 	}
 }
 
+func WithCancel(cancel bool) Option {
+	return func(opts *Options) {
+		opts.Cancel = cancel
+	}
+}
+
+func Event() <-chan *TaskEvent {
+	return runner.Event()
+}
+
+func Exec(ctx context.Context, task Task, opts ...Option) error {
+	return runner.Exec(ctx, task, opts...)
+}
+
+func Cancel(id TaskID) {
+	runner.Cancel(id)
+}
+
 type Runner struct {
 	events chan *TaskEvent
-	states map[string]taskState
+	states map[TaskID]taskState
 	mu     sync.RWMutex
 }
 
 func NewRunner() *Runner {
 	return &Runner{
 		events: make(chan *TaskEvent, 16),
-		states: make(map[string]taskState),
+		states: make(map[TaskID]taskState),
 	}
 }
 
@@ -70,11 +87,9 @@ func (r *Runner) Exec(ctx context.Context, task Task, opts ...Option) error {
 		opt(&options)
 	}
 
-	if !options.Async {
-		return task.Run(ctx)
+	if options.Cancel {
+		r.Cancel(task.ID())
 	}
-
-	r.Cancel(task.ID())
 
 	ctx, cancel := context.WithCancel(ctx)
 	r.setState(taskState{
@@ -82,19 +97,35 @@ func (r *Runner) Exec(ctx context.Context, task Task, opts ...Option) error {
 		cancel: cancel,
 	})
 
+	log := slog.With("kind", "runner", "async", options.Async)
+	log.DebugContext(ctx, fmt.Sprintf("task %s started", task.ID()))
+
+	if !options.Async {
+		t := time.Now()
+		err := task.Run(ctx)
+
+		log.With("duration", time.Since(t)).DebugContext(ctx, fmt.Sprintf("task %s done: %v", task.ID(), err))
+
+		r.events <- &TaskEvent{
+			TaskID: task.ID(),
+			Err:    err,
+		}
+
+		return err
+	}
+
 	go func() {
 		defer cancel()
 
+		t := time.Now()
+		defer func() {
+			log.With("duration", time.Since(t)).DebugContext(ctx, fmt.Sprintf("task %s done", task.ID()))
+		}()
+
 		run := func() {
-			if err := task.Run(ctx); err != nil {
-				r.events <- &TaskEvent{
-					TaskID: task.ID(),
-					Err:    err,
-				}
-				return
-			}
 			r.events <- &TaskEvent{
 				TaskID: task.ID(),
+				Err:    task.Run(ctx),
 			}
 		}
 
@@ -121,7 +152,7 @@ func (r *Runner) Exec(ctx context.Context, task Task, opts ...Option) error {
 	return nil
 }
 
-func (r *Runner) Cancel(id string) {
+func (r *Runner) Cancel(id TaskID) {
 	r.delState(id)
 }
 
@@ -136,7 +167,7 @@ func (r *Runner) setState(state taskState) {
 	r.states[state.task.ID()] = state
 }
 
-func (r *Runner) delState(id string) {
+func (r *Runner) delState(id TaskID) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

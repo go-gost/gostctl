@@ -10,6 +10,7 @@ const (
 	PageHome        PagePath = "/"
 	PageServerEdit  PagePath = "/server/edit"
 	PageServiceEdit PagePath = "/service/edit"
+	PageSettings    PagePath = "/settings"
 )
 
 type PageOptions struct {

@@ -1,35 +1,50 @@
 package service
 
 import (
-	"image/color"
+	"context"
+	"strconv"
 	"strings"
 
 	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
-	"github.com/go-gost/gui/api"
-	"github.com/go-gost/gui/ui/icons"
-	"github.com/go-gost/gui/ui/page"
-	"golang.org/x/exp/shiny/materialdesign/colornames"
+	"github.com/go-gost/gostctl/api"
+	"github.com/go-gost/gostctl/api/runner"
+	"github.com/go-gost/gostctl/api/runner/task"
+	"github.com/go-gost/gostctl/api/util"
+	"github.com/go-gost/gostctl/ui/i18n"
+	"github.com/go-gost/gostctl/ui/icons"
+	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/theme"
+	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
 type metadata struct {
-	k      component.TextField
-	v      component.TextField
-	delete widget.Clickable
+	k string
+	v string
 }
 
 type C = layout.Context
 type D = layout.Dimensions
 
+const (
+	BasicMode    = "basic"
+	AdvancedMode = "advanced"
+)
+
+const (
+	AuthTypeSimple = "simple"
+	AuthTypeAuther = "auther"
+)
+
 type servicePage struct {
 	router *page.Router
 
 	modal *component.ModalLayer
-	menu  page.Menu
+	menu  ui_widget.Menu
+	mode  widget.Enum
 	list  layout.List
 
 	btnBack   widget.Clickable
@@ -40,49 +55,34 @@ type servicePage struct {
 	name component.TextField
 	addr component.TextField
 
-	admissions   []string
-	btnAdmission widget.Clickable
-	bypasses     []string
-	btnBypass    widget.Clickable
-	resolver     string
-	btnResolver  widget.Clickable
-	hosts        string
-	btnHosts     widget.Clickable
-	limiter      string
-	btnLimiter   widget.Clickable
-	loggers      []string
-	btnLogger    widget.Clickable
-	observer     string
-	btnObserver  widget.Clickable
+	// stats ui_widget.Switcher
 
-	enableStats widget.Bool
+	customInterface ui_widget.Selector
+	interfaceDialog ui_widget.InputDialog
 
-	handler  handler
-	listener listener
+	admission  ui_widget.Selector
+	bypass     ui_widget.Selector
+	resolver   ui_widget.Selector
+	hostMapper ui_widget.Selector
+	limiter    ui_widget.Selector
+	logger     ui_widget.Selector
+	observer   ui_widget.Selector
 
-	id            string
-	edit          bool
-	create        bool
-	deleteConfirm bool
+	id     string
+	edit   bool
+	create bool
+
+	delDialog ui_widget.Dialog
+
+	handler   handler
+	listener  listener
+	forwarder forwarder
 }
 
 func NewPage(r *page.Router) page.Page {
 	p := &servicePage{
 		router: r,
-
-		modal: component.NewModal(),
-		menu: page.Menu{
-			Surface: component.SurfaceStyle{
-				Theme: r.Theme,
-				ShadowStyle: component.ShadowStyle{
-					CornerRadius: 12,
-				},
-				Fill: r.Theme.Bg,
-			},
-			List: layout.List{
-				Axis: layout.Vertical,
-			},
-		},
+		modal:  component.NewModal(),
 
 		list: layout.List{
 			// NOTE: the list must be vertical
@@ -100,11 +100,57 @@ func NewPage(r *page.Router) page.Page {
 				MaxLen:     255,
 			},
 		},
+		delDialog: ui_widget.Dialog{
+			Title: i18n.DeleteService,
+		},
+
+		// stats:           ui_widget.Switcher{Title: "Stats"},
+		customInterface: ui_widget.Selector{Title: i18n.Interface},
+		interfaceDialog: ui_widget.InputDialog{
+			Title: i18n.Interface,
+			Hint:  i18n.InterfaceHint,
+			Input: component.TextField{
+				Editor: widget.Editor{
+					SingleLine: true,
+					MaxLen:     255,
+				},
+			},
+		},
+
+		admission:  ui_widget.Selector{Title: i18n.Admission},
+		bypass:     ui_widget.Selector{Title: i18n.Bypass},
+		resolver:   ui_widget.Selector{Title: i18n.Resolver},
+		hostMapper: ui_widget.Selector{Title: i18n.Hosts},
+		limiter:    ui_widget.Selector{Title: i18n.Limiter},
+		logger:     ui_widget.Selector{Title: i18n.Logger},
+		observer:   ui_widget.Selector{Title: i18n.Observer},
 	}
-	p.handler.modal = p.modal
-	p.handler.menu = &p.menu
-	p.listener.modal = p.modal
-	p.listener.menu = &p.menu
+
+	p.handler = handler{
+		modal:            p.modal,
+		mode:             &p.mode,
+		typ:              ui_widget.Selector{Title: i18n.Type},
+		chain:            ui_widget.Selector{Title: i18n.Chain},
+		auther:           ui_widget.Selector{Title: i18n.Auther},
+		limiter:          ui_widget.Selector{Title: i18n.Limiter},
+		observer:         ui_widget.Selector{Title: i18n.Observer},
+		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
+		metadataDialog:   ui_widget.MetadataDialog{},
+	}
+	p.listener = listener{
+		modal:            p.modal,
+		mode:             &p.mode,
+		typ:              ui_widget.Selector{Title: i18n.Type},
+		chain:            ui_widget.Selector{Title: i18n.Chain},
+		auther:           ui_widget.Selector{Title: i18n.Auther},
+		enableTLS:        ui_widget.Switcher{Title: "TLS"},
+		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
+		metadataDialog:   ui_widget.MetadataDialog{},
+	}
+	p.forwarder = forwarder{
+		modal: p.modal,
+		mode:  &p.mode,
+	}
 
 	return p
 }
@@ -125,7 +171,6 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		p.create = true
 		p.name.ReadOnly = false
 	}
-	p.deleteConfirm = false
 
 	cfg := api.GetConfig()
 	var service *api.ServiceConfig
@@ -139,8 +184,255 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		service = &api.ServiceConfig{}
 	}
 
+	p.mode.Value = BasicMode
+
 	p.name.Clear()
 	p.name.SetText(service.Name)
+
+	p.addr.Clear()
+	p.addr.SetText(service.Addr)
+
+	// md := api.NewMetadata(service.Metadata)
+	// p.stats.SetValue(md.GetBool("enableStats"))
+
+	p.customInterface.Select(ui_widget.SelectorItem{Value: service.Interface})
+
+	{
+		p.admission.Clear()
+		var items []ui_widget.SelectorItem
+		if service.Admission != "" {
+			items = append(items, ui_widget.SelectorItem{Value: service.Admission})
+		}
+		for _, v := range service.Admissions {
+			items = append(items, ui_widget.SelectorItem{
+				Value: v,
+			})
+		}
+		p.admission.Select(items...)
+	}
+
+	{
+		p.bypass.Clear()
+		var items []ui_widget.SelectorItem
+		if service.Bypass != "" {
+			items = append(items, ui_widget.SelectorItem{Value: service.Bypass})
+		}
+		for _, v := range service.Bypasses {
+			items = append(items, ui_widget.SelectorItem{
+				Value: v,
+			})
+		}
+		p.bypass.Select(items...)
+	}
+
+	p.resolver.Clear()
+	if service.Resolver != "" {
+		p.resolver.Select(ui_widget.SelectorItem{Value: service.Resolver})
+	}
+
+	p.hostMapper.Clear()
+	if service.Hosts != "" {
+		p.hostMapper.Select(ui_widget.SelectorItem{Value: service.Hosts})
+	}
+
+	p.limiter.Clear()
+	if service.Limiter != "" {
+		p.limiter.Select(ui_widget.SelectorItem{Value: service.Limiter})
+	}
+
+	p.observer.Clear()
+	if service.Observer != "" {
+		p.observer.Select(ui_widget.SelectorItem{Value: service.Observer})
+	}
+
+	{
+		p.logger.Clear()
+		var items []ui_widget.SelectorItem
+		if service.Logger != "" {
+			items = append(items, ui_widget.SelectorItem{Value: service.Logger})
+		}
+
+		for _, v := range service.Loggers {
+			items = append(items, ui_widget.SelectorItem{
+				Value: v,
+			})
+		}
+		p.logger.Select(items...)
+	}
+
+	{
+		h := service.Handler
+		if h == nil {
+			h = &api.HandlerConfig{}
+		}
+
+		p.handler.typ.Clear()
+		p.handler.typ.Select(ui_widget.SelectorItem{Value: h.Type})
+
+		p.handler.chain.Clear()
+		p.handler.chain.Select(ui_widget.SelectorItem{Value: h.Chain})
+
+		{
+			p.handler.username.Clear()
+			p.handler.password.Clear()
+			p.handler.authType.Value = ""
+
+			if h.Auth != nil {
+				p.handler.username.SetText(h.Auth.Username)
+				p.handler.password.SetText(h.Auth.Password)
+				p.handler.authType.Value = AuthTypeSimple
+			}
+
+			p.handler.auther.Clear()
+			var items []ui_widget.SelectorItem
+			if h.Auther != "" {
+				items = append(items, ui_widget.SelectorItem{Value: h.Auther})
+			}
+			for _, v := range h.Authers {
+				items = append(items, ui_widget.SelectorItem{Value: v})
+			}
+			p.handler.auther.Select(items...)
+
+			if len(h.Authers) > 0 || h.Auther != "" {
+				p.handler.authType.Value = AuthTypeAuther
+			}
+		}
+
+		p.handler.metadata = nil
+		meta := api.NewMetadata(h.Metadata)
+		for k := range h.Metadata {
+			md := metadata{
+				k: k,
+				v: meta.GetString(k),
+			}
+			p.handler.metadata = append(p.handler.metadata, md)
+		}
+		p.handler.metadataSelector.Clear()
+		p.handler.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.handler.metadata))})
+	}
+
+	{
+		ln := service.Listener
+		if ln == nil {
+			ln = &api.ListenerConfig{}
+		}
+
+		p.listener.typ.Clear()
+		p.listener.typ.Select(ui_widget.SelectorItem{Value: ln.Type})
+
+		p.listener.chain.Clear()
+		p.listener.chain.Select(ui_widget.SelectorItem{Value: ln.Chain})
+
+		{
+			p.listener.username.Clear()
+			p.listener.password.Clear()
+			p.listener.authType.Value = ""
+
+			if ln.Auth != nil {
+				p.listener.username.SetText(ln.Auth.Username)
+				p.listener.password.SetText(ln.Auth.Password)
+				p.listener.authType.Value = AuthTypeSimple
+			}
+
+			p.listener.auther.Clear()
+			var items []ui_widget.SelectorItem
+			if ln.Auther != "" {
+				items = append(items, ui_widget.SelectorItem{Value: ln.Auther})
+			}
+			for _, v := range ln.Authers {
+				items = append(items, ui_widget.SelectorItem{Value: v})
+			}
+			p.listener.auther.Select(items...)
+			if len(ln.Authers) > 0 || ln.Auther != "" {
+				p.listener.authType.Value = AuthTypeAuther
+			}
+		}
+
+		{
+			p.listener.enableTLS.SetValue(false)
+			p.listener.tlsCertFile.Clear()
+			p.listener.tlsKeyFile.Clear()
+			p.listener.tlsCAFile.Clear()
+
+			if tls := ln.TLS; tls != nil {
+				p.listener.enableTLS.SetValue(true)
+				p.listener.tlsCertFile.SetText(tls.CertFile)
+				p.listener.tlsKeyFile.SetText(tls.KeyFile)
+				p.listener.tlsCAFile.SetText(tls.CAFile)
+			}
+		}
+
+		p.listener.metadata = nil
+		meta := api.NewMetadata(ln.Metadata)
+		for k := range ln.Metadata {
+			md := metadata{
+				k: k,
+				v: meta.GetString(k),
+			}
+			p.listener.metadata = append(p.listener.metadata, md)
+		}
+		p.listener.metadataSelector.Clear()
+		p.listener.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.listener.metadata))})
+	}
+
+	{
+		fwd := service.Forwarder
+		if fwd == nil {
+			fwd = &api.ForwarderConfig{}
+		}
+
+		p.forwarder.nodes = nil
+
+		for _, v := range fwd.Nodes {
+			if v == nil {
+				continue
+			}
+
+			nd := node{
+				bypass:       ui_widget.Selector{Title: i18n.Bypass},
+				enableFilter: ui_widget.Switcher{Title: i18n.Filter},
+				protocol:     ui_widget.Selector{Title: i18n.Protocol},
+				enableHTTP:   ui_widget.Switcher{Title: "HTTP"},
+				enableTLS:    ui_widget.Switcher{Title: "TLS"},
+				tlsSecure:    ui_widget.Switcher{Title: i18n.VerifyServerCert},
+			}
+			nd.name.SetText(v.Name)
+			nd.addr.SetText(v.Addr)
+
+			var items []ui_widget.SelectorItem
+			if v.Bypass != "" {
+				items = append(items, ui_widget.SelectorItem{Value: v.Bypass})
+			}
+			for _, v := range v.Bypasses {
+				items = append(items, ui_widget.SelectorItem{Value: v})
+			}
+			nd.bypass.Select(items...)
+
+			nd.protocol.Select(ui_widget.SelectorItem{Value: v.Protocol})
+			nd.host.SetText(v.Host)
+			nd.path.SetText(v.Path)
+			if v.Protocol != "" || v.Host != "" || v.Path != "" {
+				nd.enableFilter.SetValue(true)
+			}
+
+			if v.HTTP != nil {
+				nd.enableHTTP.SetValue(true)
+				nd.httpHost.SetText(v.HTTP.Host)
+				if v.HTTP.Auth != nil {
+					nd.httpUsername.SetText(v.HTTP.Auth.Username)
+					nd.httpPassword.SetText(v.HTTP.Auth.Password)
+				}
+			}
+
+			if v.TLS != nil {
+				nd.enableTLS.SetValue(true)
+				nd.tlsSecure.SetValue(v.TLS.Secure)
+				nd.tlsServerName.SetText(v.TLS.ServerName)
+			}
+
+			p.forwarder.nodes = append(p.forwarder.nodes, nd)
+		}
+	}
 }
 
 func (p *servicePage) Layout(gtx C) D {
@@ -157,12 +449,17 @@ func (p *servicePage) Layout(gtx C) D {
 	}
 
 	if p.btnDelete.Clicked(gtx) {
-		if p.deleteConfirm {
-			p.delete()
-			p.router.Back()
-		} else {
-			p.deleteConfirm = true
+		p.delDialog.OnClick = func(ok bool) {
+			if ok {
+				p.delete()
+				p.router.Back()
+			}
+			p.modal.Disappear(gtx.Now)
 		}
+		p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+			return p.delDialog.Layout(gtx, th)
+		}
+		p.modal.Appear(gtx.Now)
 	}
 
 	th := p.router.Theme
@@ -175,10 +472,10 @@ func (p *servicePage) Layout(gtx C) D {
 		// header
 		layout.Rigid(func(gtx C) D {
 			return layout.Inset{
-				Top:    5,
-				Bottom: 5,
-				Left:   10,
-				Right:  10,
+				Top:    8,
+				Bottom: 8,
+				Left:   8,
+				Right:  8,
 			}.Layout(gtx, func(gtx C) D {
 				return layout.Flex{
 					Spacing:   layout.SpaceBetween,
@@ -190,7 +487,7 @@ func (p *servicePage) Layout(gtx C) D {
 						btn.Background = th.Bg
 						return btn.Layout(gtx)
 					}),
-					layout.Rigid(layout.Spacer{Width: 10}.Layout),
+					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Flexed(1, func(gtx C) D {
 						title := material.H6(th, "Service")
 						title.Font.Weight = font.Bold
@@ -201,13 +498,11 @@ func (p *servicePage) Layout(gtx C) D {
 							return D{}
 						}
 						btn := material.IconButton(th, &p.btnDelete, icons.IconDelete, "Delete")
-						if p.deleteConfirm {
-							btn = material.IconButton(th, &p.btnDelete, icons.IconDeleteForever, "Delete")
-						}
 						btn.Color = th.Fg
 						btn.Background = th.Bg
 						return btn.Layout(gtx)
 					}),
+					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Rigid(func(gtx C) D {
 						if p.edit {
 							btn := material.IconButton(th, &p.btnSave, icons.IconDone, "Done")
@@ -225,25 +520,14 @@ func (p *servicePage) Layout(gtx C) D {
 			})
 		}),
 		layout.Flexed(1, func(gtx C) D {
-			inset := layout.Inset{
-				Top:    5,
-				Bottom: 5,
-			}
-			width := unit.Dp(800)
-			if x := gtx.Metric.PxToDp(gtx.Constraints.Max.X); x > width {
-				inset.Left = (x - width) / 2
-				inset.Right = inset.Left
-			}
-			return inset.Layout(gtx, func(gtx C) D {
-				return p.list.Layout(gtx, 1, func(gtx C, index int) D {
-					return layout.Inset{
-						Top:    5,
-						Bottom: 5,
-						Left:   10,
-						Right:  10,
-					}.Layout(gtx, func(gtx C) D {
-						return p.layout(gtx, th)
-					})
+			return p.list.Layout(gtx, 1, func(gtx C, index int) D {
+				return layout.Inset{
+					Top:    8,
+					Bottom: 8,
+					Left:   8,
+					Right:  8,
+				}.Layout(gtx, func(gtx C) D {
+					return p.layout(gtx, th)
 				})
 			})
 		}),
@@ -251,6 +535,8 @@ func (p *servicePage) Layout(gtx C) D {
 }
 
 func (p *servicePage) layout(gtx C, th *material.Theme) D {
+	src := gtx.Source
+
 	if !p.edit {
 		gtx = gtx.Disabled()
 	}
@@ -258,268 +544,204 @@ func (p *servicePage) layout(gtx C, th *material.Theme) D {
 	return component.SurfaceStyle{
 		Theme: th,
 		ShadowStyle: component.ShadowStyle{
-			CornerRadius: 20,
+			CornerRadius: 12,
 		},
-		Fill: color.NRGBA(colornames.Grey50),
+		Fill: theme.Current().ContentSurfaceBg,
 	}.Layout(gtx, func(gtx C) D {
-		return layout.Inset{
-			Top:    10,
-			Bottom: 10,
-			Left:   10,
-			Right:  10,
-		}.Layout(gtx, func(gtx C) D {
+		return layout.UniformInset(16).Layout(gtx, func(gtx C) D {
 			return layout.Flex{
 				Axis: layout.Vertical,
 			}.Layout(gtx,
-				layout.Rigid(material.Body1(th, "Name").Layout),
-				layout.Rigid(func(gtx C) D {
-					return p.name.Layout(gtx, th, "")
-				}),
-
-				layout.Rigid(layout.Spacer{Height: 10}.Layout),
-				layout.Rigid(material.Body1(th, "Addr").Layout),
-				layout.Rigid(func(gtx C) D {
-					return p.addr.Layout(gtx, th, "")
-				}),
-
-				layout.Rigid(layout.Spacer{Height: 10}.Layout),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.btnAdmission.Clicked(gtx) {
-						p.showAdmissionMenu(gtx)
-					}
-
-					return p.btnAdmission.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top:    8,
-							Bottom: 8,
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return layout.Inset{
-										Right: 5,
-									}.Layout(gtx, material.Body1(th, "Admission").Layout)
-								}),
-								layout.Flexed(1, layout.Spacer{Width: 5}.Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return material.Body2(th, strings.Join(p.admissions, ", ")).Layout(gtx)
-								}),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return icons.IconNavRight.Layout(gtx, th.Fg)
-								}),
-							)
-						})
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.btnBypass.Clicked(gtx) {
-						p.showBypassMenu(gtx)
-					}
-
-					return p.btnBypass.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top:    8,
-							Bottom: 8,
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return layout.Inset{
-										Right: 5,
-									}.Layout(gtx, material.Body1(th, "Bypass").Layout)
-								}),
-								layout.Flexed(1, layout.Spacer{Width: 5}.Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return material.Body2(th, strings.Join(p.bypasses, ", ")).Layout(gtx)
-								}),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return icons.IconNavRight.Layout(gtx, th.Fg)
-								}),
-							)
-						})
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.btnResolver.Clicked(gtx) {
-						p.showResolverMenu(gtx)
-					}
-
-					return p.btnResolver.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top:    8,
-							Bottom: 8,
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Flexed(1, material.Body1(th, "Resolver").Layout),
-								layout.Rigid(material.Body2(th, p.resolver).Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return icons.IconNavRight.Layout(gtx, th.Fg)
-								}),
-							)
-						})
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.btnHosts.Clicked(gtx) {
-						p.showHostMapperMenu(gtx)
-					}
-
-					return p.btnHosts.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top:    8,
-							Bottom: 8,
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Flexed(1, material.Body1(th, "Host Mapper").Layout),
-								layout.Rigid(material.Body2(th, p.hosts).Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return icons.IconNavRight.Layout(gtx, th.Fg)
-								}),
-							)
-						})
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.btnLimiter.Clicked(gtx) {
-						p.showLimiterMenu(gtx)
-					}
-
-					return p.btnLimiter.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top:    8,
-							Bottom: 8,
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Flexed(1, material.Body1(th, "Limiter").Layout),
-								layout.Rigid(material.Body2(th, p.limiter).Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return icons.IconNavRight.Layout(gtx, th.Fg)
-								}),
-							)
-						})
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.btnObserver.Clicked(gtx) {
-						p.showObserverMenu(gtx)
-					}
-
-					return p.btnObserver.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top:    8,
-							Bottom: 8,
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Flexed(1, material.Body1(th, "Observer").Layout),
-								layout.Rigid(material.Body2(th, p.observer).Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return icons.IconNavRight.Layout(gtx, th.Fg)
-								}),
-							)
-						})
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.btnLogger.Clicked(gtx) {
-						p.showLoggerMenu(gtx)
-					}
-
-					return p.btnLogger.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top:    8,
-							Bottom: 8,
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return layout.Inset{
-										Right: 5,
-									}.Layout(gtx, material.Body1(th, "Logger").Layout)
-								}),
-								layout.Flexed(1, layout.Spacer{Width: 5}.Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return material.Body2(th, strings.Join(p.loggers, ", ")).Layout(gtx)
-								}),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return icons.IconNavRight.Layout(gtx, th.Fg)
-								}),
-							)
-						})
-					})
-				}),
-
-				layout.Rigid(layout.Spacer{Height: 10}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
-						layout.Flexed(1, material.Body1(th, "Enable Stats").Layout),
-						layout.Rigid(material.Switch(th, &p.enableStats, "").Layout),
+						layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Source = src
+							return material.RadioButton(th, &p.mode, BasicMode, i18n.Basic.Value()).Layout(gtx)
+						}),
+						layout.Rigid(layout.Spacer{Width: 8}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Source = src
+							return material.RadioButton(th, &p.mode, AdvancedMode, i18n.Advanced.Value()).Layout(gtx)
+						}),
 					)
 				}),
 
-				layout.Rigid(layout.Spacer{Height: 10}.Layout),
+				layout.Rigid(material.Body1(th, i18n.Name.Value()).Layout),
+				layout.Rigid(func(gtx C) D {
+					return p.name.Layout(gtx, th, "")
+				}),
+				layout.Rigid(layout.Spacer{Height: 4}.Layout),
+
+				layout.Rigid(material.Body1(th, i18n.Address.Value()).Layout),
+				layout.Rigid(func(gtx C) D {
+					return p.addr.Layout(gtx, th, "")
+				}),
+
+				layout.Rigid(layout.Spacer{Height: 4}.Layout),
+
+				/*
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return p.stats.Layout(gtx, th)
+					}),
+				*/
+
+				// advanced mode
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if p.mode.Value == BasicMode {
+						return D{}
+					}
+
+					return layout.Flex{
+						Axis: layout.Vertical,
+					}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.customInterface.Clicked(gtx) {
+								p.showInterfaceDialog(gtx)
+							}
+							return p.customInterface.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.admission.Clicked(gtx) {
+								p.showAdmissionMenu(gtx)
+							}
+							return p.admission.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.bypass.Clicked(gtx) {
+								p.showBypassMenu(gtx)
+							}
+							return p.bypass.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.resolver.Clicked(gtx) {
+								p.showResolverMenu(gtx)
+							}
+							return p.resolver.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.hostMapper.Clicked(gtx) {
+								p.showHostMapperMenu(gtx)
+							}
+							return p.hostMapper.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.limiter.Clicked(gtx) {
+								p.showLimiterMenu(gtx)
+							}
+							return p.limiter.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.observer.Clicked(gtx) {
+								p.showObserverMenu(gtx)
+							}
+							return p.observer.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if p.logger.Clicked(gtx) {
+								p.showLoggerMenu(gtx)
+							}
+							return p.logger.Layout(gtx, th)
+						}),
+						layout.Rigid(layout.Spacer{Height: 8}.Layout),
+					)
+
+				}),
+
 				layout.Rigid(func(gtx C) D {
 					return layout.Inset{
-						Top:    20,
-						Bottom: 20,
-					}.Layout(gtx, material.H6(th, "Handler").Layout)
+						Top:    16,
+						Bottom: 16,
+					}.Layout(gtx, material.H6(th, i18n.Handler.Value()).Layout)
 				}),
 
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return p.handler.Layout(gtx, th)
 				}),
 
-				layout.Rigid(layout.Spacer{Height: 10}.Layout),
 				layout.Rigid(func(gtx C) D {
 					return layout.Inset{
-						Top:    20,
-						Bottom: 20,
-					}.Layout(gtx, material.H6(th, "Listener").Layout)
+						Top:    16,
+						Bottom: 16,
+					}.Layout(gtx, material.H6(th, i18n.Listener.Value()).Layout)
 				}),
 
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return p.listener.Layout(gtx, th)
+				}),
+
+				layout.Rigid(func(gtx C) D {
+					if !p.handler.canForward() {
+						return D{}
+					}
+
+					return layout.Inset{
+						Top:    16,
+						Bottom: 16,
+					}.Layout(gtx, material.H6(th, i18n.Forwarder.Value()).Layout)
+				}),
+
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if !p.handler.canForward() {
+						return D{}
+					}
+
+					return p.forwarder.Layout(gtx, th)
 				}),
 			)
 		})
 	})
 }
 
+func (p *servicePage) showInterfaceDialog(gtx C) {
+	p.interfaceDialog.Input.Clear()
+	p.interfaceDialog.Input.SetText(p.customInterface.Value())
+	p.interfaceDialog.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+
+		if ok {
+			p.customInterface.Clear()
+			p.customInterface.Select(ui_widget.SelectorItem{Value: strings.TrimSpace(p.interfaceDialog.Input.Text())})
+		}
+	}
+	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+		return p.interfaceDialog.Layout(gtx, th)
+	}
+	p.modal.Appear(gtx.Now)
+}
+
 func (p *servicePage) showAdmissionMenu(gtx C) {
-	items := []page.MenuItem{}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Admissions {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		for _, v := range p.admissions {
-			if items[i].Value == v {
-				items[i].Selected = true
-			}
-		}
+	for i := range options {
+		options[i].Selected = p.admission.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = "Admission"
-	p.menu.Items = items
-	p.menu.Selected = func(index int) {
-		p.admissions = nil
-		for i := range p.menu.Items {
-			if p.menu.Items[i].Selected {
-				p.admissions = append(p.admissions, p.menu.Items[i].Value)
+	p.menu.Title = i18n.Admission
+	p.menu.Options = options
+	p.menu.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		p.admission.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.admission.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
 	}
@@ -533,28 +755,28 @@ func (p *servicePage) showAdmissionMenu(gtx C) {
 }
 
 func (p *servicePage) showBypassMenu(gtx C) {
-	items := []page.MenuItem{}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Bypasses {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		for _, v := range p.bypasses {
-			if items[i].Value == v {
-				items[i].Selected = true
-			}
-		}
+	for i := range options {
+		options[i].Selected = p.bypass.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = "Bypass"
-	p.menu.Items = items
-	p.menu.Selected = func(index int) {
-		p.bypasses = nil
-		for i := range p.menu.Items {
-			if p.menu.Items[i].Selected {
-				p.bypasses = append(p.bypasses, p.menu.Items[i].Value)
+	p.menu.Title = i18n.Bypass
+	p.menu.Options = options
+	p.menu.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		p.bypass.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.bypass.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
 	}
@@ -568,25 +790,30 @@ func (p *servicePage) showBypassMenu(gtx C) {
 }
 
 func (p *servicePage) showResolverMenu(gtx C) {
-	items := []page.MenuItem{
-		{Key: "N/A"},
-	}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Resolvers {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		if items[i].Value == p.resolver {
-			items[i].Selected = true
-		}
+	for i := range options {
+		options[i].Selected = p.resolver.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = "Resolver"
-	p.menu.Items = items
-	p.menu.Selected = func(index int) {
-		p.resolver = p.menu.Items[index].Value
+	p.menu.Title = i18n.Resolver
+	p.menu.Options = options
+	p.menu.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		p.resolver.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.resolver.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
+			}
+		}
 		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
@@ -598,25 +825,30 @@ func (p *servicePage) showResolverMenu(gtx C) {
 }
 
 func (p *servicePage) showHostMapperMenu(gtx C) {
-	items := []page.MenuItem{
-		{Key: "N/A"},
-	}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Hosts {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		if items[i].Value == p.hosts {
-			items[i].Selected = true
-		}
+	for i := range options {
+		options[i].Selected = p.hostMapper.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = "Host Mapper"
-	p.menu.Items = items
-	p.menu.Selected = func(index int) {
-		p.hosts = p.menu.Items[index].Value
+	p.menu.Title = i18n.Hosts
+	p.menu.Options = options
+	p.menu.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		p.hostMapper.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.hostMapper.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
+			}
+		}
 		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
@@ -628,25 +860,30 @@ func (p *servicePage) showHostMapperMenu(gtx C) {
 }
 
 func (p *servicePage) showLimiterMenu(gtx C) {
-	items := []page.MenuItem{
-		{Key: "N/A"},
-	}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Limiters {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		if items[i].Value == p.limiter {
-			items[i].Selected = true
-		}
+	for i := range options {
+		options[i].Selected = p.limiter.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = "Limiter"
-	p.menu.Items = items
-	p.menu.Selected = func(index int) {
-		p.limiter = p.menu.Items[index].Value
+	p.menu.Title = i18n.Limiter
+	p.menu.Options = options
+	p.menu.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		p.limiter.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.limiter.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
+			}
+		}
 		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
@@ -658,25 +895,30 @@ func (p *servicePage) showLimiterMenu(gtx C) {
 }
 
 func (p *servicePage) showObserverMenu(gtx C) {
-	items := []page.MenuItem{
-		{Key: "N/A"},
-	}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Observers {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		if items[i].Value == p.observer {
-			items[i].Selected = true
-		}
+	for i := range options {
+		options[i].Selected = p.observer.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = "Observer"
-	p.menu.Items = items
-	p.menu.Selected = func(index int) {
-		p.observer = p.menu.Items[index].Value
+	p.menu.Title = i18n.Observer
+	p.menu.Options = options
+	p.menu.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		p.observer.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.observer.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
+			}
+		}
 		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
@@ -688,28 +930,28 @@ func (p *servicePage) showObserverMenu(gtx C) {
 }
 
 func (p *servicePage) showLoggerMenu(gtx C) {
-	items := []page.MenuItem{}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Loggers {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		for _, v := range p.loggers {
-			if items[i].Value == v {
-				items[i].Selected = true
-			}
-		}
+	for i := range options {
+		options[i].Selected = p.logger.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = "Logger"
-	p.menu.Items = items
-	p.menu.Selected = func(index int) {
-		p.loggers = nil
-		for i := range p.menu.Items {
-			if p.menu.Items[i].Selected {
-				p.loggers = append(p.loggers, p.menu.Items[i].Value)
+	p.menu.Title = i18n.Logger
+	p.menu.Options = options
+	p.menu.OnClick = func(ok bool) {
+		p.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		p.logger.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.logger.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
 	}
@@ -723,8 +965,188 @@ func (p *servicePage) showLoggerMenu(gtx C) {
 }
 
 func (p *servicePage) save() bool {
-	return false
+	cfg := p.generateConfig()
+
+	var err error
+	if p.id == "" {
+		err = runner.Exec(context.Background(),
+			task.CreateService(cfg),
+			runner.WithCancel(true),
+		)
+	} else {
+		err = runner.Exec(context.Background(),
+			task.UpdateService(cfg),
+			runner.WithCancel(true),
+		)
+	}
+	util.RestartGetConfigTask()
+
+	return err == nil
+}
+
+func (p *servicePage) generateConfig() *api.ServiceConfig {
+	var svcCfg *api.ServiceConfig
+
+	if p.id != "" {
+		for _, svc := range api.GetConfig().Services {
+			if svc == nil {
+				continue
+			}
+			if svc.Name == p.id {
+				svcCfg = svc.Copy()
+				break
+			}
+		}
+	}
+
+	if svcCfg == nil {
+		svcCfg = &api.ServiceConfig{}
+	}
+
+	svcCfg.Name = p.name.Text()
+	svcCfg.Addr = p.addr.Text()
+	svcCfg.Interface = p.customInterface.Value()
+
+	svcCfg.Admission = ""
+	svcCfg.Admissions = p.admission.Values()
+
+	svcCfg.Bypass = ""
+	svcCfg.Bypasses = p.bypass.Values()
+
+	svcCfg.Resolver = p.resolver.Value()
+	svcCfg.Hosts = p.hostMapper.Value()
+	svcCfg.Limiter = p.limiter.Value()
+
+	svcCfg.Logger = ""
+	svcCfg.Loggers = p.logger.Values()
+	svcCfg.Observer = p.observer.Value()
+
+	if svcCfg.Metadata == nil {
+		svcCfg.Metadata = make(map[string]any)
+	}
+	svcCfg.Metadata["enablestats"] = true
+
+	if svcCfg.Handler == nil {
+		svcCfg.Handler = &api.HandlerConfig{}
+	}
+
+	svcCfg.Handler.Type = p.handler.typ.Value()
+	svcCfg.Handler.Chain = p.handler.chain.Value()
+
+	svcCfg.Handler.Auther = ""
+	svcCfg.Handler.Authers = nil
+	svcCfg.Handler.Auth = nil
+	if p.handler.authType.Value == AuthTypeAuther {
+		svcCfg.Handler.Authers = p.handler.auther.Values()
+	}
+	if p.handler.authType.Value == AuthTypeSimple {
+		username := strings.TrimSpace(p.handler.username.Text())
+		password := strings.TrimSpace(p.handler.password.Text())
+		if username != "" {
+			svcCfg.Handler.Auth = &api.AuthConfig{
+				Username: username,
+				Password: password,
+			}
+		}
+	}
+
+	svcCfg.Limiter = p.handler.limiter.Value()
+	svcCfg.Observer = p.handler.observer.Value()
+
+	svcCfg.Handler.Metadata = nil
+	if len(p.handler.metadata) > 0 {
+		svcCfg.Handler.Metadata = make(map[string]any)
+	}
+	for _, md := range p.handler.metadata {
+		svcCfg.Handler.Metadata[md.k] = md.v
+	}
+
+	if svcCfg.Listener == nil {
+		svcCfg.Listener = &api.ListenerConfig{}
+	}
+
+	svcCfg.Listener.Type = p.listener.typ.Value()
+	svcCfg.Listener.Chain = p.listener.chain.Value()
+
+	svcCfg.Listener.Auther = ""
+	svcCfg.Listener.Authers = nil
+	svcCfg.Listener.Auth = nil
+	if p.listener.authType.Value == AuthTypeAuther {
+		svcCfg.Listener.Authers = p.listener.auther.Values()
+	}
+	if p.listener.authType.Value == AuthTypeSimple {
+		username := strings.TrimSpace(p.listener.username.Text())
+		password := strings.TrimSpace(p.listener.password.Text())
+		if username != "" {
+			svcCfg.Listener.Auth = &api.AuthConfig{
+				Username: username,
+				Password: password,
+			}
+		}
+	}
+
+	svcCfg.Listener.TLS = nil
+	if p.listener.enableTLS.Value() {
+		svcCfg.Listener.TLS = &api.TLSConfig{
+			CertFile: strings.TrimSpace(p.listener.tlsCertFile.Text()),
+			KeyFile:  strings.TrimSpace(p.listener.tlsKeyFile.Text()),
+			CAFile:   strings.TrimSpace(p.listener.tlsCAFile.Text()),
+		}
+	}
+
+	svcCfg.Listener.Metadata = nil
+	if len(p.listener.metadata) > 0 {
+		svcCfg.Listener.Metadata = make(map[string]any)
+	}
+	for _, md := range p.listener.metadata {
+		svcCfg.Listener.Metadata[md.k] = md.v
+	}
+
+	svcCfg.Forwarder = nil
+	if len(p.forwarder.nodes) > 0 {
+		svcCfg.Forwarder = &api.ForwarderConfig{}
+
+		for _, node := range p.forwarder.nodes {
+			nodeCfg := &api.ForwardNodeConfig{
+				Name:     node.name.Text(),
+				Addr:     node.addr.Text(),
+				Bypasses: node.bypass.Values(),
+			}
+			if node.enableFilter.Value() {
+				nodeCfg.Host = node.host.Text()
+				nodeCfg.Protocol = node.protocol.Value()
+				nodeCfg.Path = node.path.Text()
+			}
+			if node.enableHTTP.Value() {
+				nodeCfg.HTTP = &api.HTTPNodeConfig{
+					Host: node.httpHost.Text(),
+				}
+				username := strings.TrimSpace(node.httpUsername.Text())
+				password := strings.TrimSpace(node.httpPassword.Text())
+				if username != "" {
+					nodeCfg.HTTP.Auth = &api.AuthConfig{
+						Username: username,
+						Password: password,
+					}
+				}
+			}
+			if node.enableTLS.Value() {
+				nodeCfg.TLS = &api.TLSNodeConfig{
+					Secure:     node.tlsSecure.Value(),
+					ServerName: node.tlsServerName.Text(),
+				}
+			}
+			svcCfg.Forwarder.Nodes = append(svcCfg.Forwarder.Nodes, nodeCfg)
+		}
+	}
+
+	return svcCfg
 }
 
 func (p *servicePage) delete() {
+	runner.Exec(context.Background(),
+		task.DeleteService(p.id),
+		runner.WithCancel(true),
+	)
+	util.RestartGetConfigTask()
 }

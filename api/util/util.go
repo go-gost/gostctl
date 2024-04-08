@@ -5,19 +5,23 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/go-gost/gui/api"
-	"github.com/go-gost/gui/api/client"
-	"github.com/go-gost/gui/api/runner"
-	"github.com/go-gost/gui/config"
+	"github.com/go-gost/gostctl/api"
+	"github.com/go-gost/gostctl/api/client"
+	"github.com/go-gost/gostctl/api/runner"
+	"github.com/go-gost/gostctl/api/runner/task"
+	"github.com/go-gost/gostctl/config"
 )
 
 func RestartGetConfigTask() {
 	api.SetConfig(&api.Config{})
 
-	var server config.Server
-	cfg := config.Global()
+	var server *config.Server
+	cfg := config.Get()
 	if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
 		server = cfg.Servers[cfg.CurrentServer]
+	}
+	if server == nil {
+		return
 	}
 
 	var userinfo *url.Userinfo
@@ -32,8 +36,9 @@ func RestartGetConfigTask() {
 	if interval <= 0 {
 		interval = 3 * time.Second
 	}
-	runner.Default().Exec(context.Background(), runner.GetConfigTask(),
+	runner.Exec(context.Background(), task.GetConfig(),
 		runner.WithAync(true),
 		runner.WithInterval(interval),
+		runner.WithCancel(true),
 	)
 }

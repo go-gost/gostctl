@@ -1,39 +1,36 @@
 package service
 
 import (
-	"strings"
+	"strconv"
 
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
-	"github.com/go-gost/gui/api"
-	"github.com/go-gost/gui/ui/icons"
-	"github.com/go-gost/gui/ui/page"
+	"github.com/go-gost/gostctl/api"
+	"github.com/go-gost/gostctl/ui/i18n"
+	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
 type handler struct {
 	modal *component.ModalLayer
-	menu  *page.Menu
+	menu  ui_widget.Menu
+	mode  *widget.Enum
 
-	typ      string
-	btnTyp   widget.Clickable
-	chain    string
-	btnChain widget.Clickable
+	typ   ui_widget.Selector
+	chain ui_widget.Selector
 
-	authType  widget.Enum
-	username  component.TextField
-	password  component.TextField
-	authers   []string
-	btnAuther widget.Clickable
+	authType widget.Enum
+	username component.TextField
+	password component.TextField
+	auther   ui_widget.Selector
 
-	limiter     string
-	btnLimiter  widget.Clickable
-	observer    string
-	btnObserver widget.Clickable
+	limiter  ui_widget.Selector
+	observer ui_widget.Selector
 
-	metadata    []metadata
-	addMetadata widget.Clickable
+	metadata         []metadata
+	metadataSelector ui_widget.Selector
+	metadataDialog   ui_widget.MetadataDialog
 }
 
 func (h *handler) Layout(gtx C, th *material.Theme) D {
@@ -41,226 +38,128 @@ func (h *handler) Layout(gtx C, th *material.Theme) D {
 		Axis: layout.Vertical,
 	}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.btnTyp.Clicked(gtx) {
+			if h.typ.Clicked(gtx) {
 				h.showTypeMenu(gtx)
 			}
 
-			return h.btnTyp.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{
-						Alignment: layout.Middle,
-					}.Layout(gtx,
-						layout.Flexed(1, material.Body1(th, "Type").Layout),
-						layout.Rigid(material.Body2(th, h.typ).Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return icons.IconNavRight.Layout(gtx, th.Fg)
-						}),
-					)
-				})
-			})
+			return h.typ.Layout(gtx, th)
 		}),
+
+		// auth for handler
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.btnChain.Clicked(gtx) {
+			if !h.canAuth() {
+				return D{}
+			}
+
+			return layout.Flex{
+				Axis: layout.Vertical,
+			}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{
+						Top:    4,
+						Bottom: 4,
+					}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{
+							Alignment: layout.Middle,
+							Spacing:   layout.SpaceBetween,
+						}.Layout(gtx,
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								return material.Body1(th, i18n.Auth.Value()).Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return material.RadioButton(th, &h.authType, AuthTypeSimple, i18n.AuthSimple.Value()).Layout(gtx)
+							}),
+							layout.Rigid(layout.Spacer{Width: 8}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return material.RadioButton(th, &h.authType, AuthTypeAuther, i18n.AuthAuther.Value()).Layout(gtx)
+							}),
+						)
+					})
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if h.authType.Value != AuthTypeSimple {
+						return D{}
+					}
+
+					return layout.Flex{
+						Axis: layout.Vertical,
+					}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return h.username.Layout(gtx, th, i18n.Username.Value())
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return h.password.Layout(gtx, th, i18n.Password.Value())
+						}),
+						layout.Rigid(layout.Spacer{Height: 4}.Layout),
+					)
+				}),
+
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if h.authType.Value != AuthTypeAuther {
+						return D{}
+					}
+
+					if h.auther.Clicked(gtx) {
+						h.showAutherMenu(gtx)
+					}
+
+					return h.auther.Layout(gtx, th)
+				}),
+			)
+		}),
+
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if h.chain.Clicked(gtx) {
 				h.showChainMenu(gtx)
 			}
 
-			return h.btnChain.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{
-						Alignment: layout.Middle,
-					}.Layout(gtx,
-						layout.Flexed(1, material.Body1(th, "Chain").Layout),
-						layout.Rigid(material.Body2(th, h.chain).Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return icons.IconNavRight.Layout(gtx, th.Fg)
-						}),
-					)
-				})
-			})
+			return h.chain.Layout(gtx, th)
 		}),
-		layout.Rigid(layout.Spacer{Height: 5}.Layout),
+
+		// advanced mode
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{
-				Alignment: layout.Middle,
-				Spacing:   layout.SpaceBetween,
-			}.Layout(gtx,
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					return material.Body1(th, "Auth").Layout(gtx)
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return material.RadioButton(th, &h.authType, "simple", "Simple").Layout(gtx)
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return material.RadioButton(th, &h.authType, "auther", "Auther").Layout(gtx)
-				}),
-			)
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.authType.Value != "simple" {
+			if h.mode.Value == BasicMode {
 				return D{}
-			}
-			return h.username.Layout(gtx, th, "Username")
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.authType.Value != "simple" {
-				return D{}
-			}
-			return h.password.Layout(gtx, th, "Password")
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.authType.Value != "auther" {
-				return D{}
-			}
-
-			if h.btnAuther.Clicked(gtx) {
-				h.showAutherMenu(gtx)
-			}
-
-			return h.btnAuther.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{
-						Alignment: layout.Middle,
-					}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return layout.Inset{
-								Right: 5,
-							}.Layout(gtx, material.Body1(th, "Auther").Layout)
-						}),
-						layout.Flexed(1, layout.Spacer{Width: 5}.Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return material.Body2(th, strings.Join(h.authers, ", ")).Layout(gtx)
-						}),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return icons.IconNavRight.Layout(gtx, th.Fg)
-						}),
-					)
-				})
-			})
-		}),
-
-		layout.Rigid(layout.Spacer{Height: 5}.Layout),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.btnLimiter.Clicked(gtx) {
-				h.showLimiterMenu(gtx)
-			}
-
-			return h.btnLimiter.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{
-						Alignment: layout.Middle,
-					}.Layout(gtx,
-						layout.Flexed(1, material.Body1(th, "Limiter").Layout),
-						layout.Rigid(material.Body2(th, h.limiter).Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return icons.IconNavRight.Layout(gtx, th.Fg)
-						}),
-					)
-				})
-			})
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.btnObserver.Clicked(gtx) {
-				h.showObserverMenu(gtx)
-			}
-
-			return h.btnObserver.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{
-						Alignment: layout.Middle,
-					}.Layout(gtx,
-						layout.Flexed(1, material.Body1(th, "Observer").Layout),
-						layout.Rigid(material.Body2(th, h.observer).Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return icons.IconNavRight.Layout(gtx, th.Fg)
-						}),
-					)
-				})
-			})
-		}),
-
-		layout.Rigid(layout.Spacer{Height: 5}.Layout),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if h.addMetadata.Clicked(gtx) {
-				h.metadata = append(h.metadata, metadata{})
 			}
 
 			return layout.Flex{
-				Alignment: layout.Middle,
+				Axis: layout.Vertical,
 			}.Layout(gtx,
-				layout.Flexed(1, material.Body1(th, "Metadata").Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					btn := material.IconButton(th, &h.addMetadata, icons.IconAdd, "Add")
-					btn.Background = th.Bg
-					btn.Color = th.Fg
-					btn.Inset = layout.UniformInset(0)
-					return btn.Layout(gtx)
+					if h.limiter.Clicked(gtx) {
+						h.showLimiterMenu(gtx)
+					}
+					return h.limiter.Layout(gtx, th)
+				}),
+
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if h.observer.Clicked(gtx) {
+						h.showObserverMenu(gtx)
+					}
+					return h.observer.Layout(gtx, th)
 				}),
 			)
 		}),
-		layout.Rigid(layout.Spacer{Height: 5}.Layout),
+
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return h.layoutMetadata(gtx, th)
+			if h.metadataSelector.Clicked(gtx) {
+				h.showMetadataDialog(gtx)
+			}
+			return h.metadataSelector.Layout(gtx, th)
 		}),
 	)
 }
 
-func (h *handler) layoutMetadata(gtx C, th *material.Theme) D {
-	for i := range h.metadata {
-		if h.metadata[i].delete.Clicked(gtx) {
-			h.metadata = append(h.metadata[:i], h.metadata[i+1:]...)
-			break
-		}
-	}
+func (h *handler) canAuth() bool {
+	return h.typ.AnyValue("auto", "http", "http2", "socks4", "socks5", "socks", "relay", "ss", "file")
+}
 
-	var children []layout.FlexChild
-	for i := range h.metadata {
-		i := i
-		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{
-					Alignment: layout.Middle,
-				}.Layout(gtx,
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return h.metadata[i].k.Layout(gtx, th, "Key")
-					}),
-					layout.Rigid(layout.Spacer{Width: 5}.Layout),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return h.metadata[i].v.Layout(gtx, th, "Value")
-					}),
-					layout.Rigid(layout.Spacer{Width: 5}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						btn := material.IconButton(th, &h.metadata[i].delete, icons.IconDelete, "delete")
-						btn.Background = th.Bg
-						btn.Color = th.Fg
-						btn.Inset = layout.UniformInset(5)
-						return btn.Layout(gtx)
-					}),
-				)
-			})
-		}))
-	}
-	return layout.Flex{
-		Axis: layout.Vertical,
-	}.Layout(gtx, children...)
+func (h *handler) canForward() bool {
+	return h.typ.AnyValue("tcp", "udp", "rtcp", "rudp", "forward", "rforward", "dns", "serial", "unix")
 }
 
 func (h *handler) showTypeMenu(gtx C) {
-	items := []page.MenuItem{
+	options := []ui_widget.MenuOption{
 		{Key: "Auto", Value: "auto"},
 		{Key: "HTTP", Value: "http"},
 		{Key: "SOCKS4", Value: "socks4"},
@@ -268,37 +167,50 @@ func (h *handler) showTypeMenu(gtx C) {
 		{Key: "Relay", Value: "relay"},
 		{Key: "Shadowsocks", Value: "ss"},
 		{Key: "HTTP2", Value: "http2"},
-		{Key: "HTTP3", Value: "http3"},
 
 		{Key: "TCP", Value: "tcp"},
 		{Key: "UDP", Value: "udp"},
 		{Key: "RTCP", Value: "rtcp"},
 		{Key: "RUDP", Value: "rudp"},
-
-		{Key: "SNI", Value: "sni"},
-		{Key: "DNS", Value: "dns"},
-		{Key: "SSHD", Value: "sshd"},
-
-		{Key: "TCP Redirect", Value: "red"},
-		{Key: "UDP Redirect", Value: "redu"},
-		{Key: "TUN", Value: "tun"},
-		{Key: "TAP", Value: "tap"},
-		{Key: "Tunnel", Value: "tunnel"},
-
-		{Key: "File Server", Value: "file"},
-		{Key: "Serial Port Redirector", Value: "serial"},
-		{Key: "Unix Domain Socket", Value: "unix"},
 	}
-	for i := range items {
-		if items[i].Value == h.typ {
-			items[i].Selected = true
+
+	if h.mode.Value == AdvancedMode {
+		options = append(options, []ui_widget.MenuOption{
+			{Key: "SNI", Value: "sni"},
+			{Key: "DNS", Value: "dns"},
+			{Key: "SSHD", Value: "sshd"},
+			{Key: "HTTP3", Value: "http3"},
+
+			{Key: "TCP Redirect", Value: "red"},
+			{Key: "UDP Redirect", Value: "redu"},
+			{Key: "TUN", Value: "tun"},
+			{Key: "TAP", Value: "tap"},
+			{Key: "Tunnel", Value: "tunnel"},
+
+			{Key: "File Server", Value: "file"},
+			{Key: "Serial Port Redirector", Value: "serial"},
+			{Key: "Unix Domain Socket", Value: "unix"},
+		}...)
+	}
+
+	for i := range options {
+		options[i].Selected = h.typ.AnyValue(options[i].Value)
+	}
+
+	h.menu.Title = i18n.Handler
+	h.menu.Options = options
+	h.menu.OnClick = func(ok bool) {
+		h.modal.Disappear(gtx.Now)
+		if !ok {
+			return
 		}
-	}
 
-	h.menu.Title = "Handler Type"
-	h.menu.Items = items
-	h.menu.Selected = func(index int) {
-		h.typ = h.menu.Items[index].Value
+		h.typ.Clear()
+		for i := range h.menu.Options {
+			if h.menu.Options[i].Selected {
+				h.typ.Select(ui_widget.SelectorItem{Value: h.menu.Options[i].Value})
+			}
+		}
 		h.modal.Disappear(gtx.Now)
 	}
 	h.menu.ShowAdd = false
@@ -310,25 +222,30 @@ func (h *handler) showTypeMenu(gtx C) {
 }
 
 func (h *handler) showChainMenu(gtx C) {
-	items := []page.MenuItem{
-		{Key: "N/A"},
-	}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Chains {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		if items[i].Value == h.chain {
-			items[i].Selected = true
-		}
+	for i := range options {
+		options[i].Selected = h.chain.AnyValue(options[i].Value)
 	}
 
-	h.menu.Title = "Chain"
-	h.menu.Items = items
-	h.menu.Selected = func(index int) {
-		h.chain = h.menu.Items[index].Value
+	h.menu.Title = i18n.Chain
+	h.menu.Options = options
+	h.menu.OnClick = func(ok bool) {
+		h.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		h.chain.Clear()
+		for i := range h.menu.Options {
+			if h.menu.Options[i].Selected {
+				h.chain.Select(ui_widget.SelectorItem{Value: h.menu.Options[i].Value})
+			}
+		}
 		h.modal.Disappear(gtx.Now)
 	}
 	h.menu.ShowAdd = true
@@ -340,28 +257,28 @@ func (h *handler) showChainMenu(gtx C) {
 }
 
 func (h *handler) showAutherMenu(gtx C) {
-	items := []page.MenuItem{}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Authers {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		for _, v := range h.authers {
-			if items[i].Value == v {
-				items[i].Selected = true
-			}
-		}
+	for i := range options {
+		options[i].Selected = h.auther.AnyValue(options[i].Value)
 	}
 
-	h.menu.Title = "Auther"
-	h.menu.Items = items
-	h.menu.Selected = func(index int) {
-		h.authers = nil
-		for i := range h.menu.Items {
-			if h.menu.Items[i].Selected {
-				h.authers = append(h.authers, h.menu.Items[i].Value)
+	h.menu.Title = i18n.Auther
+	h.menu.Options = options
+	h.menu.OnClick = func(ok bool) {
+		h.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		h.auther.Clear()
+		for i := range h.menu.Options {
+			if h.menu.Options[i].Selected {
+				h.auther.Select(ui_widget.SelectorItem{Value: h.menu.Options[i].Value})
 			}
 		}
 	}
@@ -375,25 +292,30 @@ func (h *handler) showAutherMenu(gtx C) {
 }
 
 func (h *handler) showLimiterMenu(gtx C) {
-	items := []page.MenuItem{
-		{Key: "N/A"},
-	}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Limiters {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		if items[i].Value == h.limiter {
-			items[i].Selected = true
-		}
+	for i := range options {
+		options[i].Selected = h.limiter.AnyValue(options[i].Value)
 	}
 
-	h.menu.Title = "Limiter"
-	h.menu.Items = items
-	h.menu.Selected = func(index int) {
-		h.limiter = h.menu.Items[index].Value
+	h.menu.Title = i18n.Limiter
+	h.menu.Options = options
+	h.menu.OnClick = func(ok bool) {
+		h.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		h.limiter.Clear()
+		for i := range h.menu.Options {
+			if h.menu.Options[i].Selected {
+				h.limiter.Select(ui_widget.SelectorItem{Value: h.menu.Options[i].Value})
+			}
+		}
 		h.modal.Disappear(gtx.Now)
 	}
 	h.menu.ShowAdd = true
@@ -405,31 +327,64 @@ func (h *handler) showLimiterMenu(gtx C) {
 }
 
 func (h *handler) showObserverMenu(gtx C) {
-	items := []page.MenuItem{
-		{Key: "N/A"},
-	}
+	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Observers {
-		items = append(items, page.MenuItem{
-			Key:   v.Name,
+		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
-	for i := range items {
-		if items[i].Value == h.observer {
-			items[i].Selected = true
-		}
+	for i := range options {
+		options[i].Selected = h.observer.AnyValue(options[i].Value)
 	}
 
-	h.menu.Title = "Observer"
-	h.menu.Items = items
-	h.menu.Selected = func(index int) {
-		h.observer = h.menu.Items[index].Value
+	h.menu.Title = i18n.Observer
+	h.menu.Options = options
+	h.menu.OnClick = func(ok bool) {
+		h.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+
+		h.observer.Clear()
+		for i := range h.menu.Options {
+			if h.menu.Options[i].Selected {
+				h.observer.Select(ui_widget.SelectorItem{Value: h.menu.Options[i].Value})
+			}
+		}
 		h.modal.Disappear(gtx.Now)
 	}
 	h.menu.ShowAdd = true
 
 	h.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
 		return h.menu.Layout(gtx, th)
+	}
+	h.modal.Appear(gtx.Now)
+}
+
+func (h *handler) showMetadataDialog(gtx layout.Context) {
+	h.metadataDialog.Clear()
+	for _, md := range h.metadata {
+		h.metadataDialog.Add(md.k, md.v)
+	}
+	h.metadataDialog.OnClick = func(ok bool) {
+		h.modal.Disappear(gtx.Now)
+		if !ok {
+			return
+		}
+		h.metadata = nil
+		for _, kv := range h.metadataDialog.Metadata() {
+			k, v := kv.Get()
+			h.metadata = append(h.metadata, metadata{
+				k: k,
+				v: v,
+			})
+		}
+		h.metadataSelector.Clear()
+		h.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(h.metadata))})
+	}
+
+	h.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+		return h.metadataDialog.Layout(gtx, th)
 	}
 	h.modal.Appear(gtx.Now)
 }

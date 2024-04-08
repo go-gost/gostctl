@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gioui.org/app"
@@ -24,6 +25,10 @@ var (
 	configDir string
 )
 
+func init() {
+	config.Store(&Config{})
+}
+
 func Init() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true})))
 
@@ -39,18 +44,20 @@ func Init() {
 
 	slog.Info(fmt.Sprintf("appDir: %s", configDir))
 
-	if err := global.load(); err != nil {
+	cfg := Get()
+	if err := cfg.load(); err != nil {
 		slog.Error(fmt.Sprintf("load config: %v", err))
 		if _, ok := err.(*os.PathError); ok {
-			global.Write()
+			cfg.Write()
 		}
 	}
+	Set(cfg)
 
 	initLog()
 }
 
 func initLog() {
-	cfg := global.Log
+	cfg := Get().Log
 	if cfg == nil {
 		return
 	}
@@ -115,29 +122,38 @@ func initLog() {
 }
 
 var (
-	global    = &Config{}
-	globalMux sync.RWMutex
+	config atomic.Value
 )
 
-func Global() *Config {
-	globalMux.RLock()
-	defer globalMux.RUnlock()
-
+func Get() *Config {
+	c := config.Load().(*Config)
 	cfg := &Config{}
-	*cfg = *global
+	*cfg = *c
 	return cfg
 }
 
 func Set(c *Config) {
-	globalMux.Lock()
-	defer globalMux.Unlock()
-
-	global = c
+	if c == nil {
+		c = &Config{}
+	}
+	config.Store(c)
 }
 
 type Settings struct {
 	Lang  string
 	Theme string
+}
+
+type ServerState string
+
+const (
+	ServerReady ServerState = "ready"
+	ServerError ServerState = "error"
+)
+
+type ServerEvent struct {
+	Time time.Time
+	Msg  string
 }
 
 type Server struct {
@@ -147,6 +163,34 @@ type Server struct {
 	Password string        `yaml:",omitempty"`
 	Interval time.Duration `yaml:",omitempty"`
 	Timeout  time.Duration `yaml:",omitempty"`
+	state    ServerState
+	events   []ServerEvent
+	mu       sync.RWMutex
+}
+
+func (s *Server) State() ServerState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.state
+}
+
+func (s *Server) SetState(state ServerState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = state
+}
+
+func (s *Server) Events() []ServerEvent {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.events
+}
+
+func (s *Server) AddEvent(event ServerEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events = append(s.events, event)
 }
 
 type Log struct {
@@ -180,7 +224,7 @@ type LogRotation struct {
 }
 
 type Config struct {
-	Servers       []Server
+	Servers       []*Server
 	CurrentServer int `yaml:"currentServer"`
 	Settings      *Settings
 	Log           *Log

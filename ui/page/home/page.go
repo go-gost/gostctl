@@ -3,43 +3,57 @@ package home
 import (
 	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-	"github.com/go-gost/gui/ui/icons"
-	"github.com/go-gost/gui/ui/page"
-	"github.com/go-gost/gui/ui/page/home/list"
+	"github.com/go-gost/gostctl/ui/i18n"
+	"github.com/go-gost/gostctl/ui/icons"
+	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/page/home/list"
+	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
 type C = layout.Context
 type D = layout.Dimensions
 
+type navPage struct {
+	list list.List
+	path page.PagePath
+}
+
 type homePage struct {
 	router      *page.Router
-	nav         nav
-	btnCreate   widget.Clickable
+	nav         *ui_widget.Nav
+	pages       []navPage
+	btnAdd      widget.Clickable
 	btnSettings widget.Clickable
 }
 
 func NewPage(r *page.Router) page.Page {
 	return &homePage{
 		router: r,
-		nav: nav{
-			btns: []*navButton{
-				NavButton("Server", list.Server(r), page.PageServerEdit),
-				NavButton("Service", list.Service(r), page.PageServiceEdit),
-				NavButton("Chain", nil, ""),
-				NavButton("Hop", nil, ""),
-				NavButton("Auther", nil, ""),
-				NavButton("Admission", nil, ""),
-				NavButton("Bypass", nil, ""),
-				NavButton("Resolver", nil, ""),
-				NavButton("Hosts", nil, ""),
-				NavButton("Limiter", nil, ""),
-				NavButton("Ingress", nil, ""),
-				NavButton("Logger", nil, ""),
+		nav: ui_widget.NewNav(
+			ui_widget.NewNavButton(i18n.Server),
+			ui_widget.NewNavButton(i18n.Service),
+			ui_widget.NewNavButton(i18n.Chain),
+			ui_widget.NewNavButton(i18n.Hop),
+			ui_widget.NewNavButton(i18n.Auther),
+			ui_widget.NewNavButton(i18n.Admission),
+			ui_widget.NewNavButton(i18n.Bypass),
+			ui_widget.NewNavButton(i18n.Resolver),
+			ui_widget.NewNavButton(i18n.Hosts),
+			ui_widget.NewNavButton(i18n.Limiter),
+			ui_widget.NewNavButton(i18n.Ingress),
+			ui_widget.NewNavButton(i18n.Logger),
+		),
+		pages: []navPage{
+			{
+				list: list.Server(r),
+				path: page.PageServerEdit,
 			},
-			current: 1,
+			{
+				list: list.Service(r),
+				path: page.PageServiceEdit,
+			},
 		},
 	}
 }
@@ -48,8 +62,10 @@ func (p *homePage) Init(opts ...page.PageOption) {
 }
 
 func (p *homePage) Layout(gtx C) D {
-	if p.btnCreate.Clicked(gtx) {
-		p.router.Goto(page.Route{Path: p.nav.btns[p.nav.current].Create})
+	if p.btnAdd.Clicked(gtx) {
+		if current := p.nav.Current(); current < len(p.pages) {
+			p.router.Goto(page.Route{Path: p.pages[current].path})
+		}
 	}
 
 	th := p.router.Theme
@@ -65,28 +81,33 @@ func (p *homePage) Layout(gtx C) D {
 				// header
 				layout.Rigid(func(gtx C) D {
 					return layout.Inset{
-						Top:    5,
-						Bottom: 5,
-						Left:   10,
-						Right:  10,
+						Top:    8,
+						Bottom: 8,
+						Left:   8,
+						Right:  8,
 					}.Layout(gtx, func(gtx C) D {
 						return layout.Flex{
 							Spacing:   layout.SpaceBetween,
 							Alignment: layout.Middle,
 						}.Layout(gtx,
-							/*
-								layout.Rigid(func(gtx C) D {
-									return icons.IconApp.Layout(gtx)
-								}),
-							*/
-							layout.Rigid(layout.Spacer{Width: 10}.Layout),
+							layout.Rigid(func(gtx C) D {
+								gtx.Constraints.Max.X = gtx.Dp(50)
+								return icons.IconApp.Layout(gtx)
+							}),
+							layout.Rigid(layout.Spacer{Width: 8}.Layout),
 							layout.Rigid(func(gtx C) D {
 								label := material.H6(th, "GOST")
 								label.Font.Weight = font.Bold
 								return label.Layout(gtx)
 							}),
-							layout.Flexed(1, layout.Spacer{}.Layout),
+							layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
 							layout.Rigid(func(gtx C) D {
+								if p.btnSettings.Clicked(gtx) {
+									p.router.Goto(page.Route{
+										Path: page.PageSettings,
+									})
+								}
+
 								btn := material.IconButton(th, &p.btnSettings, icons.IconSettings, "Settings")
 								btn.Color = th.Fg
 								btn.Background = th.Bg
@@ -98,48 +119,37 @@ func (p *homePage) Layout(gtx C) D {
 				// nav
 				layout.Rigid(func(gtx C) D {
 					return layout.Inset{
-						Top:    5,
-						Bottom: 5,
+						Top:    4,
+						Bottom: 4,
 					}.Layout(gtx, func(gtx C) D {
 						return p.nav.Layout(gtx, th)
 					})
 				}),
 				// list
 				layout.Flexed(1, func(gtx C) D {
-					current := p.nav.current
-					if current >= len(p.nav.btns) {
+					current := p.nav.Current()
+					if current >= len(p.pages) {
 						current = 0
 					}
-					list := p.nav.btns[current].List
-					if list == nil {
+					pg := p.pages[current]
+					if pg.list == nil {
 						return D{
 							Size: gtx.Constraints.Max,
 						}
 					}
 
-					inset := layout.Inset{
-						Top:    5,
-						Bottom: 5,
-					}
-					width := unit.Dp(800)
-					if x := gtx.Metric.PxToDp(gtx.Constraints.Max.X); x > width {
-						inset.Left = (x - width) / 2
-						inset.Right = inset.Left
-					}
-					return inset.Layout(gtx, func(gtx C) D {
-						return list.Layout(gtx, th)
-					})
+					return pg.list.Layout(gtx, th)
 				}),
 			)
 		}),
 		layout.Stacked(func(gtx C) D {
 			return layout.Inset{
-				Top:    10,
-				Bottom: 10,
-				Left:   10,
-				Right:  10,
+				Top:    16,
+				Bottom: 16,
+				Left:   16,
+				Right:  16,
 			}.Layout(gtx, func(gtx C) D {
-				btn := material.IconButton(th, &p.btnCreate, icons.IconAdd, "Add")
+				btn := material.IconButton(th, &p.btnAdd, icons.IconAdd, "Add")
 				btn.Inset = layout.UniformInset(16)
 
 				return btn.Layout(gtx)

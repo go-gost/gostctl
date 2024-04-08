@@ -1,14 +1,18 @@
 package ui
 
 import (
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/text"
 	"gioui.org/widget/material"
-	"github.com/go-gost/gui/ui/page"
-	"github.com/go-gost/gui/ui/page/home"
-	"github.com/go-gost/gui/ui/page/server"
-	"github.com/go-gost/gui/ui/page/service"
+	"github.com/go-gost/gostctl/config"
+	"github.com/go-gost/gostctl/ui/fonts"
+	"github.com/go-gost/gostctl/ui/i18n"
+	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/page/home"
+	"github.com/go-gost/gostctl/ui/page/server"
+	"github.com/go-gost/gostctl/ui/page/service"
+	"github.com/go-gost/gostctl/ui/page/settings"
+	"github.com/go-gost/gostctl/ui/theme"
 )
 
 type C = layout.Context
@@ -19,13 +23,26 @@ type UI struct {
 }
 
 func NewUI() *UI {
+	if settings := config.Get().Settings; settings != nil {
+		switch settings.Theme {
+		case theme.Dark:
+			theme.UseDark()
+		default:
+			theme.UseLight()
+		}
+		i18n.Set(settings.Lang)
+	}
+
 	th := material.NewTheme()
-	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	// th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	th.Shaper = text.NewShaper(text.WithCollection(fonts.Collection()))
+	th.Palette = theme.Current().Material
 
 	router := page.NewRouter(th)
 	router.Register(page.PageHome, home.NewPage(router))
 	router.Register(page.PageServerEdit, server.NewPage(router))
 	router.Register(page.PageServiceEdit, service.NewPage(router))
+	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{
 		Path: page.PageHome,
