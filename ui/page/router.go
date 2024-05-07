@@ -8,16 +8,26 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
 	"github.com/go-gost/gostctl/ui/theme"
+)
+
+const (
+	MaxWidth = 800
 )
 
 type C = layout.Context
 type D = layout.Dimensions
+type T = material.Theme
 
 type Route struct {
-	Path PagePath
-	ID   string
+	Path     PagePath
+	ID       string
+	Value    any
+	Callback Callback
+	Perm     Perm
 }
 
 type Router struct {
@@ -25,12 +35,14 @@ type Router struct {
 	stack   routeStack
 	current Route
 	*material.Theme
+	modal *component.ModalLayer
 }
 
-func NewRouter(th *material.Theme) *Router {
+func NewRouter(th *T) *Router {
 	r := &Router{
 		pages: make(map[PagePath]Page),
 		Theme: th,
+		modal: component.NewModal(),
 	}
 
 	return r
@@ -49,7 +61,12 @@ func (r *Router) Goto(route Route) {
 	r.current = route
 	r.stack.Push(route)
 
-	page.Init(WithPageID(route.ID))
+	page.Init(
+		WithPageID(route.ID),
+		WithPageValue(route.Value),
+		WithPageCallback(route.Callback),
+		WithPagePerm(route.Perm),
+	)
 	slog.Debug(fmt.Sprintf("go to %s", route.Path), "kind", "router", "route.id", route.ID)
 }
 
@@ -63,12 +80,14 @@ func (r *Router) Back() {
 	}
 	r.current = route
 
-	page.Init(WithPageID(route.ID))
+	// page.Init(WithPageID(route.ID))
 	slog.Debug(fmt.Sprintf("back to %s", route.Path), "kind", "router", "route.id", route.ID)
 }
 
 func (r *Router) Layout(gtx C) D {
 	r.Theme.Palette = theme.Current().Material
+
+	defer r.modal.Layout(gtx, r.Theme)
 
 	return layout.Background{}.Layout(gtx,
 		func(gtx C) D {
@@ -102,6 +121,25 @@ func (r *Router) Layout(gtx C) D {
 			})
 		},
 	)
+}
+
+func (r *Router) ShowModal(gtx C, w func(gtx C, th *T) D) {
+	r.modal.Widget = func(gtx C, th *T, anim *component.VisibilityAnimation) D {
+		if gtx.Constraints.Max.X > gtx.Dp(MaxWidth) {
+			gtx.Constraints.Max.X = gtx.Dp(MaxWidth)
+		}
+		gtx.Constraints.Max.X = gtx.Constraints.Max.X * 3 / 4
+
+		var clk widget.Clickable
+		return clk.Layout(gtx, func(gtx C) D {
+			return w(gtx, th)
+		})
+	}
+	r.modal.Appear(gtx.Now)
+}
+
+func (r *Router) HideModal(gtx C) {
+	r.modal.Disappear(gtx.Now)
 }
 
 type routeStack struct {

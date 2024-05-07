@@ -64,6 +64,10 @@ const (
 	Ingress   Key = "ingress"
 	Observer  Key = "observer"
 	Logger    Key = "logger"
+	Recorder  Key = "recorder"
+	Plugin    Key = "plugin"
+	Selector  Key = "selector"
+	Node      Key = "node"
 
 	Type         Key = "type"
 	Name         Key = "name"
@@ -79,6 +83,11 @@ const (
 	TimeoutHint  Key = "timeoutHint"
 	Seconds      Key = "seconds"
 	Filter       Key = "filter"
+	TLS          Key = "tls"
+	HTTP         Key = "http"
+	CertFile     Key = "certFile"
+	KeyFile      Key = "keyFile"
+	CAFile       Key = "caFile"
 
 	Auth      Key = "auth"
 	BasicAuth Key = "basicAuth"
@@ -102,13 +111,32 @@ const (
 	VerifyServerCert  Key = "verifyServerCert"
 	RewriteHostHeader Key = "rewriteHostHeader"
 
+	FileServer           Key = "fileServer"
+	SerialPortRedirector Key = "serialPortRedirector"
+	UnixDomainSocket     Key = "unixDomainSocket"
+	ReverseProxyTunnel   Key = "reverseProxyTunnel"
+
 	DirectoryPath  Key = "dirPath"
 	CustomHostname Key = "customHostname"
 	Hostname       Key = "hostname"
 	EnableTLS      Key = "enableTLS"
 	Keepalive      Key = "keepalive"
-	DeleteServer   Key = "deleteServer"
-	DeleteService  Key = "deleteService"
+
+	DeleteServer  Key = "deleteServer"
+	DeleteService Key = "deleteService"
+	DeleteChain   Key = "deleteChain"
+	DeleteHop     Key = "deleteHop"
+	DeleteNode    Key = "deleteNode"
+
+	SelectorStrategy Key = "selectorStrategy"
+	SelectorRound    Key = "selectorRound"
+	SelectorRandom   Key = "selectorRandom"
+	SelectorFIFO     Key = "selectorFIFO"
+
+	PluginGRPC Key = "gRPC"
+	PluginHTTP Key = "HTTP"
+
+	TimeSecond Key = "timeSecond"
 
 	ErrNameRequired Key = "errNameRequired"
 	ErrNameExists   Key = "errNameExists"

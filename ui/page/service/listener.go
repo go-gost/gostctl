@@ -8,13 +8,15 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/go-gost/gostctl/api"
+	"github.com/go-gost/gostctl/ui/i18n"
+	"github.com/go-gost/gostctl/ui/page"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
 type listener struct {
-	modal *component.ModalLayer
-	menu  ui_widget.Menu
-	mode  *widget.Enum
+	router *page.Router
+	menu   ui_widget.Menu
+	mode   *widget.Enum
 
 	typ   ui_widget.Selector
 	chain ui_widget.Selector
@@ -29,74 +31,74 @@ type listener struct {
 	tlsKeyFile  component.TextField
 	tlsCAFile   component.TextField
 
-	metadata         []metadata
+	metadata         []page.Metadata
 	metadataSelector ui_widget.Selector
 	metadataDialog   ui_widget.MetadataDialog
 }
 
-func (l *listener) Layout(gtx C, th *material.Theme) D {
+func (l *listener) Layout(gtx page.C, th *page.T) page.D {
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		layout.Rigid(func(gtx page.C) page.D {
 			if l.typ.Clicked(gtx) {
 				l.showTypeMenu(gtx)
 			}
 			return l.typ.Layout(gtx, th)
 		}),
 
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		layout.Rigid(func(gtx page.C) page.D {
 			if !l.canAuth() {
-				return D{}
+				return page.D{}
 			}
 
 			return layout.Flex{
 				Axis: layout.Vertical,
 			}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				layout.Rigid(func(gtx page.C) page.D {
 					return layout.Inset{
 						Top:    4,
 						Bottom: 4,
-					}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					}.Layout(gtx, func(gtx page.C) page.D {
 						return layout.Flex{
 							Alignment: layout.Middle,
 							Spacing:   layout.SpaceBetween,
 						}.Layout(gtx,
-							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								return material.Body1(th, "Auth").Layout(gtx)
+							layout.Flexed(1, func(gtx page.C) page.D {
+								return material.Body1(th, i18n.Auth.Value()).Layout(gtx)
 							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return material.RadioButton(th, &l.authType, AuthTypeSimple, "Simple").Layout(gtx)
+							layout.Rigid(func(gtx page.C) page.D {
+								return material.RadioButton(th, &l.authType, string(page.AuthSimple), i18n.AuthSimple.Value()).Layout(gtx)
 							}),
 							layout.Rigid(layout.Spacer{Width: 8}.Layout),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return material.RadioButton(th, &l.authType, AuthTypeAuther, "Auther").Layout(gtx)
+							layout.Rigid(func(gtx page.C) page.D {
+								return material.RadioButton(th, &l.authType, string(page.AuthAuther), i18n.AuthAuther.Value()).Layout(gtx)
 							}),
 						)
 					})
 				}),
 
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if l.authType.Value != AuthTypeSimple {
-						return D{}
+				layout.Rigid(func(gtx page.C) page.D {
+					if l.authType.Value != string(page.AuthSimple) {
+						return page.D{}
 					}
 
 					return layout.Flex{
 						Axis: layout.Vertical,
 					}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return l.username.Layout(gtx, th, "Username")
+						layout.Rigid(func(gtx page.C) page.D {
+							return l.username.Layout(gtx, th, i18n.Username.Value())
 						}),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return l.password.Layout(gtx, th, "Password")
+						layout.Rigid(func(gtx page.C) page.D {
+							return l.password.Layout(gtx, th, i18n.Password.Value())
 						}),
 						layout.Rigid(layout.Spacer{Height: 4}.Layout),
 					)
 				}),
 
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if l.authType.Value != AuthTypeAuther {
-						return D{}
+				layout.Rigid(func(gtx page.C) page.D {
+					if l.authType.Value != string(page.AuthAuther) {
+						return page.D{}
 					}
 
 					if l.auther.Clicked(gtx) {
@@ -107,9 +109,9 @@ func (l *listener) Layout(gtx C, th *material.Theme) D {
 			)
 		}),
 
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		layout.Rigid(func(gtx page.C) page.D {
 			if !l.canChain() {
-				return D{}
+				return page.D{}
 			}
 
 			if l.chain.Clicked(gtx) {
@@ -119,45 +121,45 @@ func (l *listener) Layout(gtx C, th *material.Theme) D {
 		}),
 
 		// TLS config
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		layout.Rigid(func(gtx page.C) page.D {
 			if !l.canTLS() {
-				return D{}
+				return page.D{}
 			}
 
 			return layout.Inset{
 				Top:    4,
 				Bottom: 4,
-			}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			}.Layout(gtx, func(gtx page.C) page.D {
 				return layout.Flex{
 					Axis: layout.Vertical,
 				}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					layout.Rigid(func(gtx page.C) page.D {
 						return l.enableTLS.Layout(gtx, th)
 					}),
 					layout.Rigid(layout.Spacer{Height: 4}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					layout.Rigid(func(gtx page.C) page.D {
 						if !l.enableTLS.Value() {
-							return D{}
+							return page.D{}
 						}
-						return l.tlsCertFile.Layout(gtx, th, "Cert File")
+						return l.tlsCertFile.Layout(gtx, th, i18n.CertFile.Value())
 					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					layout.Rigid(func(gtx page.C) page.D {
 						if !l.enableTLS.Value() {
-							return D{}
+							return page.D{}
 						}
-						return l.tlsKeyFile.Layout(gtx, th, "Key File")
+						return l.tlsKeyFile.Layout(gtx, th, i18n.KeyFile.Value())
 					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					layout.Rigid(func(gtx page.C) page.D {
 						if !l.enableTLS.Value() {
-							return D{}
+							return page.D{}
 						}
-						return l.tlsCAFile.Layout(gtx, th, "CA File")
+						return l.tlsCAFile.Layout(gtx, th, i18n.CAFile.Value())
 					}),
 				)
 			})
 		}),
 
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		layout.Rigid(func(gtx page.C) page.D {
 			if l.metadataSelector.Clicked(gtx) {
 				l.showMetadataDialog(gtx)
 			}
@@ -178,7 +180,7 @@ func (l *listener) canTLS() bool {
 	return l.typ.AnyValue("tls", "mtls", "wss", "mwss", "http2", "h2", "grpc", "quic", "http3", "h3", "wt", "dtls")
 }
 
-func (l *listener) showTypeMenu(gtx C) {
+func (l *listener) showTypeMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{
 		{Key: "TCP", Value: "tcp"},
 		{Key: "UDP", Value: "udp"},
@@ -192,7 +194,7 @@ func (l *listener) showTypeMenu(gtx C) {
 		{Key: "H2C", Value: "h2c"},
 		{Key: "KCP", Value: "kcp"},
 	}
-	if l.mode.Value == AdvancedMode {
+	if l.mode.Value == string(page.AdvancedMode) {
 		options = append(options, []ui_widget.MenuOption{
 			{Key: "MTLS", Value: "mtls"},
 			{Key: "MWS", Value: "mws"},
@@ -229,10 +231,10 @@ func (l *listener) showTypeMenu(gtx C) {
 		options[i].Selected = l.typ.AnyValue(options[i].Value)
 	}
 
-	l.menu.Title = "Listener Type"
+	l.menu.Title = i18n.Listener
 	l.menu.Options = options
 	l.menu.OnClick = func(ok bool) {
-		l.modal.Disappear(gtx.Now)
+		l.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -243,17 +245,16 @@ func (l *listener) showTypeMenu(gtx C) {
 				l.typ.Select(ui_widget.SelectorItem{Value: l.menu.Options[i].Value})
 			}
 		}
-		l.modal.Disappear(gtx.Now)
 	}
 	l.menu.ShowAdd = false
+	l.menu.Multiple = false
 
-	l.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	l.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return l.menu.Layout(gtx, th)
-	}
-	l.modal.Appear(gtx.Now)
+	})
 }
 
-func (l *listener) showChainMenu(gtx C) {
+func (l *listener) showChainMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Chains {
 		options = append(options, ui_widget.MenuOption{
@@ -264,10 +265,10 @@ func (l *listener) showChainMenu(gtx C) {
 		options[i].Selected = l.chain.AnyValue(options[i].Value)
 	}
 
-	l.menu.Title = "Chain"
+	l.menu.Title = i18n.Chain
 	l.menu.Options = options
 	l.menu.OnClick = func(ok bool) {
-		l.modal.Disappear(gtx.Now)
+		l.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -278,17 +279,16 @@ func (l *listener) showChainMenu(gtx C) {
 				l.chain.Select(ui_widget.SelectorItem{Value: l.menu.Options[i].Value})
 			}
 		}
-		l.modal.Disappear(gtx.Now)
 	}
 	l.menu.ShowAdd = true
+	l.menu.Multiple = false
 
-	l.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	l.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return l.menu.Layout(gtx, th)
-	}
-	l.modal.Appear(gtx.Now)
+	})
 }
 
-func (l *listener) showAutherMenu(gtx C) {
+func (l *listener) showAutherMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Authers {
 		options = append(options, ui_widget.MenuOption{
@@ -299,10 +299,10 @@ func (l *listener) showAutherMenu(gtx C) {
 		options[i].Selected = l.auther.AnyValue(options[i].Value)
 	}
 
-	l.menu.Title = "Auther"
+	l.menu.Title = i18n.Auther
 	l.menu.Options = options
 	l.menu.OnClick = func(ok bool) {
-		l.modal.Disappear(gtx.Now)
+		l.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -317,36 +317,34 @@ func (l *listener) showAutherMenu(gtx C) {
 	l.menu.ShowAdd = true
 	l.menu.Multiple = true
 
-	l.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	l.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return l.menu.Layout(gtx, th)
-	}
-	l.modal.Appear(gtx.Now)
+	})
 }
 
-func (l *listener) showMetadataDialog(gtx layout.Context) {
+func (l *listener) showMetadataDialog(gtx page.C) {
 	l.metadataDialog.Clear()
 	for _, md := range l.metadata {
-		l.metadataDialog.Add(md.k, md.v)
+		l.metadataDialog.Add(md.K, md.V)
 	}
 	l.metadataDialog.OnClick = func(ok bool) {
-		l.modal.Disappear(gtx.Now)
+		l.router.HideModal(gtx)
 		if !ok {
 			return
 		}
 		l.metadata = nil
 		for _, kv := range l.metadataDialog.Metadata() {
 			k, v := kv.Get()
-			l.metadata = append(l.metadata, metadata{
-				k: k,
-				v: v,
+			l.metadata = append(l.metadata, page.Metadata{
+				K: k,
+				V: v,
 			})
 		}
 		l.metadataSelector.Clear()
 		l.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
 	}
 
-	l.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	l.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return l.metadataDialog.Layout(gtx, th)
-	}
-	l.modal.Appear(gtx.Now)
+	})
 }

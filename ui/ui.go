@@ -1,14 +1,17 @@
 package ui
 
 import (
+	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/text"
 	"gioui.org/widget/material"
 	"github.com/go-gost/gostctl/config"
-	"github.com/go-gost/gostctl/ui/fonts"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/page/chain"
 	"github.com/go-gost/gostctl/ui/page/home"
+	"github.com/go-gost/gostctl/ui/page/hop"
+	"github.com/go-gost/gostctl/ui/page/node"
 	"github.com/go-gost/gostctl/ui/page/server"
 	"github.com/go-gost/gostctl/ui/page/service"
 	"github.com/go-gost/gostctl/ui/page/settings"
@@ -34,14 +37,17 @@ func NewUI() *UI {
 	}
 
 	th := material.NewTheme()
-	// th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
-	th.Shaper = text.NewShaper(text.WithCollection(fonts.Collection()))
+	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	// th.Shaper = text.NewShaper(text.WithCollection(fonts.Collection()))
 	th.Palette = theme.Current().Material
 
 	router := page.NewRouter(th)
 	router.Register(page.PageHome, home.NewPage(router))
-	router.Register(page.PageServerEdit, server.NewPage(router))
-	router.Register(page.PageServiceEdit, service.NewPage(router))
+	router.Register(page.PageServer, server.NewPage(router))
+	router.Register(page.PageService, service.NewPage(router))
+	router.Register(page.PageChain, chain.NewPage(router))
+	router.Register(page.PageHop, hop.NewPage(router))
+	router.Register(page.PageNode, node.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{

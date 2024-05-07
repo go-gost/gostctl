@@ -1,13 +1,14 @@
 package list
 
 import (
-	"gioui.org/layout"
-	"gioui.org/widget/material"
+	"gioui.org/widget"
+	"github.com/go-gost/gostctl/ui/page"
 )
 
-type C = layout.Context
-type D = layout.Dimensions
-
 type List interface {
-	Layout(gtx C, th *material.Theme) D
+	Layout(gtx page.C, th *page.T) page.D
+}
+
+type state struct {
+	clk widget.Clickable
 }

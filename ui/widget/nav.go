@@ -44,16 +44,13 @@ func (p *Nav) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 
 		if p.current == index {
 			btn.background = theme.Current().NavButtonContrastBg
+			btn.borderWidth = 0
 		} else {
 			btn.background = theme.Current().Material.Bg
+			btn.borderWidth = 1
 		}
 
-		return layout.Inset{
-			Top:    8,
-			Bottom: 8,
-			Left:   12,
-			Right:  12,
-		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.UniformInset(8).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return btn.Layout(gtx, th)
 		})
 	})
@@ -87,10 +84,10 @@ func (btn *NavButton) Layout(gtx layout.Context, th *material.Theme) layout.Dime
 			CornerRadius: btn.cornerRadius,
 		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{
-				Top:    8,
-				Bottom: 8,
-				Left:   20,
-				Right:  20,
+				Top:    9,
+				Bottom: 9,
+				Left:   16,
+				Right:  16,
 			}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				label := material.Body1(th, btn.text.Value())
 				return label.Layout(gtx)

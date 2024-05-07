@@ -17,7 +17,6 @@ import (
 
 type settingsPage struct {
 	router *page.Router
-	modal  *component.ModalLayer
 	menu   ui_widget.Menu
 	list   widget.List
 
@@ -30,7 +29,6 @@ type settingsPage struct {
 func NewPage(r *page.Router) page.Page {
 	return &settingsPage{
 		router: r,
-		modal:  component.NewModal(),
 		list: widget.List{
 			List: layout.List{
 				Axis: layout.Vertical,
@@ -55,19 +53,19 @@ func (p *settingsPage) Init(opts ...page.PageOption) {
 
 	p.lang.Clear()
 	p.lang.Select(ui_widget.SelectorItem{
-		Name:  i18n.Current().Name,
+		Key:   i18n.Current().Name,
 		Value: i18n.Current().Value,
 	})
 
 	p.theme.Clear()
 	if settings.Theme == theme.Light {
 		p.theme.Select(ui_widget.SelectorItem{
-			Name:  i18n.Light,
+			Key:   i18n.Light,
 			Value: settings.Theme,
 		})
 	} else {
 		p.theme.Select(ui_widget.SelectorItem{
-			Name:  i18n.Dark,
+			Key:   i18n.Dark,
 			Value: settings.Theme,
 		})
 	}
@@ -79,8 +77,6 @@ func (p *settingsPage) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	th := p.router.Theme
-
-	defer p.modal.Layout(gtx, th)
 
 	return layout.Flex{
 		Axis: layout.Vertical,
@@ -196,7 +192,7 @@ func (p *settingsPage) showLangMenu(gtx layout.Context) {
 	p.menu.Title = i18n.Language
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -206,7 +202,7 @@ func (p *settingsPage) showLangMenu(gtx layout.Context) {
 		for index := range p.menu.Options {
 			if p.menu.Options[index].Selected {
 				p.lang.Select(ui_widget.SelectorItem{
-					Name:  p.menu.Options[index].Key,
+					Key:   p.menu.Options[index].Key,
 					Value: p.menu.Options[index].Value,
 				})
 				break
@@ -225,10 +221,9 @@ func (p *settingsPage) showLangMenu(gtx layout.Context) {
 		i18n.Set(cfg.Settings.Lang)
 	}
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *material.Theme) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }
 
 func (p *settingsPage) showThemeMenu(gtx layout.Context) {
@@ -251,7 +246,7 @@ func (p *settingsPage) showThemeMenu(gtx layout.Context) {
 	p.menu.Title = i18n.Theme
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -261,7 +256,7 @@ func (p *settingsPage) showThemeMenu(gtx layout.Context) {
 		for index := range p.menu.Options {
 			if p.menu.Options[index].Selected {
 				p.theme.Select(ui_widget.SelectorItem{
-					Name:  p.menu.Options[index].Key,
+					Key:   p.menu.Options[index].Key,
 					Value: p.menu.Options[index].Value,
 				})
 				break
@@ -285,8 +280,7 @@ func (p *settingsPage) showThemeMenu(gtx layout.Context) {
 		}
 	}
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *material.Theme) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }

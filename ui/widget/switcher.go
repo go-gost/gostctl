@@ -10,19 +10,26 @@ import (
 type Switcher struct {
 	Title i18n.Key
 	b     widget.Bool
+	ck    widget.Clickable
 }
 
 func (p *Switcher) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	return layout.Inset{
-		Top:    8,
-		Bottom: 8,
-	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{
-			Alignment: layout.Middle,
-		}.Layout(gtx,
-			layout.Flexed(1, material.Body1(th, p.Title.Value()).Layout),
-			layout.Rigid(material.Switch(th, &p.b, "").Layout),
-		)
+	if p.ck.Clicked(gtx) && !p.b.Update(gtx) {
+		p.b.Value = !p.b.Value
+	}
+
+	return material.Clickable(gtx, &p.ck, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{
+			Top:    10,
+			Bottom: 10,
+		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{
+				Alignment: layout.Middle,
+			}.Layout(gtx,
+				layout.Flexed(1, material.Body1(th, p.Title.Value()).Layout),
+				layout.Rigid(material.Switch(th, &p.b, "").Layout),
+			)
+		})
 	})
 }
 

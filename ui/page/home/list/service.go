@@ -10,7 +10,6 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"github.com/go-gost/gostctl/api"
 	"github.com/go-gost/gostctl/ui/i18n"
@@ -20,14 +19,10 @@ import (
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 )
 
-type serviceState struct {
-	btn widget.Clickable
-}
-
 type serviceList struct {
 	router *page.Router
 	list   layout.List
-	states []serviceState
+	states []state
 }
 
 func Service(r *page.Router) List {
@@ -37,25 +32,26 @@ func Service(r *page.Router) List {
 			Axis:      layout.Vertical,
 			Alignment: layout.Middle,
 		},
-		states: make([]serviceState, 16),
+		states: make([]state, 16),
 	}
 }
 
-func (l *serviceList) Layout(gtx C, th *material.Theme) D {
+func (l *serviceList) Layout(gtx page.C, th *page.T) page.D {
 	cfg := api.GetConfig()
 	services := cfg.Services
 
 	if len(services) > len(l.states) {
 		states := l.states
-		l.states = make([]serviceState, len(services))
+		l.states = make([]state, len(services))
 		copy(l.states, states)
 	}
 
-	return l.list.Layout(gtx, len(services), func(gtx C, index int) D {
-		if l.states[index].btn.Clicked(gtx) {
+	return l.list.Layout(gtx, len(services), func(gtx page.C, index int) page.D {
+		if l.states[index].clk.Clicked(gtx) {
 			l.router.Goto(page.Route{
-				Path: page.PageServiceEdit,
+				Path: page.PageService,
 				ID:   services[index].Name,
+				Perm: page.PermReadWriteDelete,
 			})
 		}
 
@@ -79,18 +75,18 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 			Bottom: 8,
 			Left:   8,
 			Right:  8,
-		}.Layout(gtx, func(gtx C) D {
+		}.Layout(gtx, func(gtx page.C) page.D {
 			return material.ButtonLayoutStyle{
 				Background:   theme.Current().ListBg,
 				CornerRadius: 12,
-				Button:       &l.states[index].btn,
-			}.Layout(gtx, func(gtx C) D {
-				return layout.UniformInset(16).Layout(gtx, func(gtx C) D {
+				Button:       &l.states[index].clk,
+			}.Layout(gtx, func(gtx page.C) page.D {
+				return layout.UniformInset(16).Layout(gtx, func(gtx page.C) page.D {
 					return layout.Flex{
 						Axis: layout.Vertical,
 					}.Layout(gtx,
 						// title, state
-						layout.Rigid(func(gtx C) D {
+						layout.Rigid(func(gtx page.C) page.D {
 							var state string
 							if status != nil {
 								state = status.State
@@ -120,13 +116,13 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
-								layout.Flexed(1, func(gtx C) D {
+								layout.Flexed(1, func(gtx page.C) page.D {
 									label := material.Body1(th, service.Name)
 									label.Font.Weight = font.SemiBold
 									return label.Layout(gtx)
 								}),
 								layout.Rigid(layout.Spacer{Width: 4}.Layout),
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									gtx.Constraints.Min.X = gtx.Dp(12)
 									return icons.IconCircle.Layout(gtx, color.NRGBA(c))
 								}),
@@ -135,15 +131,15 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 							)
 						}),
 						layout.Rigid(layout.Spacer{Height: 4}.Layout),
-						layout.Rigid(func(gtx C) D {
+						layout.Rigid(func(gtx page.C) page.D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
-								layout.Flexed(1, func(gtx C) D {
+								layout.Flexed(1, func(gtx page.C) page.D {
 									return material.Body2(th, service.Addr).Layout(gtx)
 								}),
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									if service.Status != nil && service.Status.CreateTime > 0 {
 										createdAt := time.Unix(service.Status.CreateTime, 0)
 										v, unit := formatDuration(time.Since(createdAt))
@@ -155,16 +151,16 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 						}),
 						// layout.Rigid(material.Body2(th, fmt.Sprintf("Type: %s, %s", handler.Type, listener.Type)).Layout),
 						layout.Rigid(layout.Spacer{Height: 4}.Layout),
-						layout.Rigid(func(gtx C) D {
+						layout.Rigid(func(gtx page.C) page.D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									return icons.IconActionCode.Layout(gtx, th.Fg)
 								}),
 								layout.Rigid(layout.Spacer{Width: 4}.Layout),
-								layout.Flexed(1, func(gtx C) D {
+								layout.Flexed(1, func(gtx page.C) page.D {
 									if status != nil && status.Stats != nil {
 										current, unitCurrent := format(int64(status.Stats.CurrentConns), 1000)
 										current = float64(int64(current*10)) / 10
@@ -177,7 +173,7 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 									}
 									return material.Body2(th, "N/A").Layout(gtx)
 								}),
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									if status != nil && status.Stats != nil {
 										rate := status.Stats.RequestRate
 										rate = float64(int64(rate*100)) / 100
@@ -188,16 +184,16 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 							)
 						}),
 						layout.Rigid(layout.Spacer{Height: 4}.Layout),
-						layout.Rigid(func(gtx C) D {
+						layout.Rigid(func(gtx page.C) page.D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									return icons.IconNavExpandLess.Layout(gtx, th.Fg)
 								}),
 								layout.Rigid(layout.Spacer{Width: 4}.Layout),
-								layout.Flexed(1, func(gtx C) D {
+								layout.Flexed(1, func(gtx page.C) page.D {
 									if status != nil && status.Stats != nil {
 										v, unit := format(int64(status.Stats.OutputBytes), 1024)
 										v = float64(int64(v*100)) / 100
@@ -205,7 +201,7 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 									}
 									return material.Body2(th, "N/A").Layout(gtx)
 								}),
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									if status != nil && status.Stats != nil {
 										v, unit := format(int64(status.Stats.OutputRateBytes), 1024)
 										v = float64(int64(v*100)) / 100
@@ -216,16 +212,16 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 							)
 						}),
 						layout.Rigid(layout.Spacer{Height: 4}.Layout),
-						layout.Rigid(func(gtx C) D {
+						layout.Rigid(func(gtx page.C) page.D {
 							return layout.Flex{
 								Alignment: layout.Middle,
 								Spacing:   layout.SpaceBetween,
 							}.Layout(gtx,
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									return icons.IconNavExpandMore.Layout(gtx, th.Fg)
 								}),
 								layout.Rigid(layout.Spacer{Width: 4}.Layout),
-								layout.Flexed(1, func(gtx C) D {
+								layout.Flexed(1, func(gtx page.C) page.D {
 									if status != nil && status.Stats != nil {
 										v, unit := format(int64(status.Stats.InputBytes), 1024)
 										v = float64(int64(v*100)) / 100
@@ -233,7 +229,7 @@ func (l *serviceList) Layout(gtx C, th *material.Theme) D {
 									}
 									return material.Body2(th, "N/A").Layout(gtx)
 								}),
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									if status != nil && status.Stats != nil {
 										v, unit := format(int64(status.Stats.InputRateBytes), 1024)
 										v = float64(int64(v*100)) / 100

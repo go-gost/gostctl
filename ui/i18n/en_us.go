@@ -14,6 +14,10 @@ var en_US = map[Key]string{
 	Ingress:   "Ingress",
 	Observer:  "Observer",
 	Logger:    "Logger",
+	Recorder:  "Recorder",
+	Plugin:    "Plugin",
+	Selector:  "Selector",
+	Node:      "Node",
 
 	Type:         "Type",
 	Name:         "Name",
@@ -29,6 +33,11 @@ var en_US = map[Key]string{
 	TimeoutHint:  "request timeout when obtaining configuration",
 	Seconds:      "Seconds",
 	Filter:       "Filter",
+	TLS:          "TLS",
+	HTTP:         "HTTP",
+	CertFile:     "Cert File",
+	KeyFile:      "Key File",
+	CAFile:       "CA File",
 
 	Auth:          "Auth",
 	BasicAuth:     "Basic auth",
@@ -41,6 +50,11 @@ var en_US = map[Key]string{
 	Interface:     "Interface",
 	InterfaceHint: "IP or interface name",
 
+	FileServer:           "File Server",
+	SerialPortRedirector: "Serial Port Redirector",
+	UnixDomainSocket:     "Unix Domain Socket",
+	ReverseProxyTunnel:   "Reverse Proxy Tunnel",
+
 	Handler:           "Handler",
 	Listener:          "Listener",
 	Forwarder:         "Forwarder",
@@ -50,14 +64,34 @@ var en_US = map[Key]string{
 	Metadata:          "Metadata",
 	RewriteHostHeader: "Rewrite host header",
 
+	DeleteServer:  "Delete server?",
+	DeleteService: "Delete service?",
+	DeleteChain:   "Delete chain?",
+	DeleteHop:     "Delete hop?",
+	DeleteNode:    "Delete node?",
+
+	SelectorStrategy: "Strategy",
+	SelectorRound:    "Round-Robin",
+	SelectorRandom:   "Random",
+	SelectorFIFO:     "HA",
+
+	PluginGRPC: "gRPC",
+	PluginHTTP: "HTTP",
+
+	TimeSecond: "s",
+
 	DirectoryPath:  "Directory path",
 	CustomHostname: "Custom hostname (rewrite HTTP Host header)",
 	Hostname:       "Hostname",
 	EnableTLS:      "Enalbe TLS",
 	Keepalive:      "Keepalive",
-	ErrInvalidAddr: "invalid address format, should be [IP]:PORT or [HOST]:PORT",
-	ErrDigitOnly:   "Must contain only digits",
-	ErrDirectory:   "is not a directory",
+
+	ErrNameRequired: "name is required",
+	ErrNameExists:   "name exists",
+	ErrURLRequired:  "URL is required",
+	ErrInvalidAddr:  "invalid address format, should be [IP]:PORT or [HOST]:PORT",
+	ErrDigitOnly:    "Must contain only digits",
+	ErrDirectory:    "is not a directory",
 
 	OK:     "OK",
 	Cancel: "Cancel",

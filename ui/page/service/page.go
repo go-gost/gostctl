@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -21,31 +20,12 @@ import (
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
-type metadata struct {
-	k string
-	v string
-}
-
-type C = layout.Context
-type D = layout.Dimensions
-
-const (
-	BasicMode    = "basic"
-	AdvancedMode = "advanced"
-)
-
-const (
-	AuthTypeSimple = "simple"
-	AuthTypeAuther = "auther"
-)
-
 type servicePage struct {
 	router *page.Router
 
-	modal *component.ModalLayer
-	menu  ui_widget.Menu
-	mode  widget.Enum
-	list  layout.List
+	menu ui_widget.Menu
+	mode widget.Enum
+	list layout.List
 
 	btnBack   widget.Clickable
 	btnDelete widget.Clickable
@@ -57,8 +37,8 @@ type servicePage struct {
 
 	// stats ui_widget.Switcher
 
-	customInterface ui_widget.Selector
-	interfaceDialog ui_widget.InputDialog
+	// customInterface ui_widget.Selector
+	// interfaceDialog ui_widget.InputDialog
 
 	admission  ui_widget.Selector
 	bypass     ui_widget.Selector
@@ -68,11 +48,16 @@ type servicePage struct {
 	logger     ui_widget.Selector
 	observer   ui_widget.Selector
 
-	id     string
+	id   string
+	perm page.Perm
+
 	edit   bool
 	create bool
 
-	delDialog ui_widget.Dialog
+	metadata         []page.Metadata
+	metadataSelector ui_widget.Selector
+	metadataDialog   ui_widget.MetadataDialog
+	delDialog        ui_widget.Dialog
 
 	handler   handler
 	listener  listener
@@ -82,7 +67,6 @@ type servicePage struct {
 func NewPage(r *page.Router) page.Page {
 	p := &servicePage{
 		router: r,
-		modal:  component.NewModal(),
 
 		list: layout.List{
 			// NOTE: the list must be vertical
@@ -91,7 +75,7 @@ func NewPage(r *page.Router) page.Page {
 		name: component.TextField{
 			Editor: widget.Editor{
 				SingleLine: true,
-				MaxLen:     32,
+				MaxLen:     128,
 			},
 		},
 		addr: component.TextField{
@@ -100,22 +84,22 @@ func NewPage(r *page.Router) page.Page {
 				MaxLen:     255,
 			},
 		},
-		delDialog: ui_widget.Dialog{
-			Title: i18n.DeleteService,
-		},
+		delDialog: ui_widget.Dialog{Title: i18n.DeleteService},
 
 		// stats:           ui_widget.Switcher{Title: "Stats"},
-		customInterface: ui_widget.Selector{Title: i18n.Interface},
-		interfaceDialog: ui_widget.InputDialog{
-			Title: i18n.Interface,
-			Hint:  i18n.InterfaceHint,
-			Input: component.TextField{
-				Editor: widget.Editor{
-					SingleLine: true,
-					MaxLen:     255,
+		/*
+			customInterface: ui_widget.Selector{Title: i18n.Interface},
+			interfaceDialog: ui_widget.InputDialog{
+				Title: i18n.Interface,
+				Hint:  i18n.InterfaceHint,
+				Input: component.TextField{
+					Editor: widget.Editor{
+						SingleLine: true,
+						MaxLen:     255,
+					},
 				},
 			},
-		},
+		*/
 
 		admission:  ui_widget.Selector{Title: i18n.Admission},
 		bypass:     ui_widget.Selector{Title: i18n.Bypass},
@@ -124,10 +108,13 @@ func NewPage(r *page.Router) page.Page {
 		limiter:    ui_widget.Selector{Title: i18n.Limiter},
 		logger:     ui_widget.Selector{Title: i18n.Logger},
 		observer:   ui_widget.Selector{Title: i18n.Observer},
+
+		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
+		metadataDialog:   ui_widget.MetadataDialog{},
 	}
 
 	p.handler = handler{
-		modal:            p.modal,
+		router:           r,
 		mode:             &p.mode,
 		typ:              ui_widget.Selector{Title: i18n.Type},
 		chain:            ui_widget.Selector{Title: i18n.Chain},
@@ -138,18 +125,21 @@ func NewPage(r *page.Router) page.Page {
 		metadataDialog:   ui_widget.MetadataDialog{},
 	}
 	p.listener = listener{
-		modal:            p.modal,
+		router:           r,
 		mode:             &p.mode,
 		typ:              ui_widget.Selector{Title: i18n.Type},
 		chain:            ui_widget.Selector{Title: i18n.Chain},
 		auther:           ui_widget.Selector{Title: i18n.Auther},
-		enableTLS:        ui_widget.Switcher{Title: "TLS"},
+		enableTLS:        ui_widget.Switcher{Title: i18n.TLS},
 		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
 		metadataDialog:   ui_widget.MetadataDialog{},
 	}
 	p.forwarder = forwarder{
-		modal: p.modal,
-		mode:  &p.mode,
+		router: r,
+		mode:   &p.mode,
+		delDialog: ui_widget.Dialog{
+			Title: i18n.DeleteNode,
+		},
 	}
 
 	return p
@@ -172,6 +162,8 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		p.name.ReadOnly = false
 	}
 
+	p.perm = options.Perm
+
 	cfg := api.GetConfig()
 	var service *api.ServiceConfig
 	for _, svc := range cfg.Services {
@@ -184,7 +176,7 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		service = &api.ServiceConfig{}
 	}
 
-	p.mode.Value = BasicMode
+	p.mode.Value = string(page.BasicMode)
 
 	p.name.Clear()
 	p.name.SetText(service.Name)
@@ -195,7 +187,7 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 	// md := api.NewMetadata(service.Metadata)
 	// p.stats.SetValue(md.GetBool("enableStats"))
 
-	p.customInterface.Select(ui_widget.SelectorItem{Value: service.Interface})
+	// p.customInterface.Select(ui_widget.SelectorItem{Value: service.Interface})
 
 	{
 		p.admission.Clear()
@@ -261,13 +253,32 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 	}
 
 	{
+		p.metadata = nil
+		meta := api.NewMetadata(service.Metadata)
+		for k := range service.Metadata {
+			md := page.Metadata{
+				K: k,
+				V: meta.GetString(k),
+			}
+			p.metadata = append(p.metadata, md)
+		}
+		p.metadataSelector.Clear()
+		p.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+	}
+
+	{
 		h := service.Handler
 		if h == nil {
 			h = &api.HandlerConfig{}
 		}
 
 		p.handler.typ.Clear()
-		p.handler.typ.Select(ui_widget.SelectorItem{Value: h.Type})
+		for i := range handlerTypeAdvancedOptions {
+			if handlerTypeAdvancedOptions[i].Value == h.Type {
+				p.handler.typ.Select(ui_widget.SelectorItem{Name: handlerTypeAdvancedOptions[i].Name, Key: handlerTypeAdvancedOptions[i].Key, Value: handlerTypeAdvancedOptions[i].Value})
+				break
+			}
+		}
 
 		p.handler.chain.Clear()
 		p.handler.chain.Select(ui_widget.SelectorItem{Value: h.Chain})
@@ -280,7 +291,7 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 			if h.Auth != nil {
 				p.handler.username.SetText(h.Auth.Username)
 				p.handler.password.SetText(h.Auth.Password)
-				p.handler.authType.Value = AuthTypeSimple
+				p.handler.authType.Value = string(page.AuthSimple)
 			}
 
 			p.handler.auther.Clear()
@@ -294,16 +305,16 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 			p.handler.auther.Select(items...)
 
 			if len(h.Authers) > 0 || h.Auther != "" {
-				p.handler.authType.Value = AuthTypeAuther
+				p.handler.authType.Value = string(page.AuthAuther)
 			}
 		}
 
 		p.handler.metadata = nil
 		meta := api.NewMetadata(h.Metadata)
 		for k := range h.Metadata {
-			md := metadata{
-				k: k,
-				v: meta.GetString(k),
+			md := page.Metadata{
+				K: k,
+				V: meta.GetString(k),
 			}
 			p.handler.metadata = append(p.handler.metadata, md)
 		}
@@ -331,7 +342,7 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 			if ln.Auth != nil {
 				p.listener.username.SetText(ln.Auth.Username)
 				p.listener.password.SetText(ln.Auth.Password)
-				p.listener.authType.Value = AuthTypeSimple
+				p.listener.authType.Value = string(page.AuthSimple)
 			}
 
 			p.listener.auther.Clear()
@@ -344,7 +355,7 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 			}
 			p.listener.auther.Select(items...)
 			if len(ln.Authers) > 0 || ln.Auther != "" {
-				p.listener.authType.Value = AuthTypeAuther
+				p.listener.authType.Value = string(page.AuthAuther)
 			}
 		}
 
@@ -365,9 +376,9 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		p.listener.metadata = nil
 		meta := api.NewMetadata(ln.Metadata)
 		for k := range ln.Metadata {
-			md := metadata{
-				k: k,
-				v: meta.GetString(k),
+			md := page.Metadata{
+				K: k,
+				V: meta.GetString(k),
 			}
 			p.listener.metadata = append(p.listener.metadata, md)
 		}
@@ -392,9 +403,10 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 				bypass:       ui_widget.Selector{Title: i18n.Bypass},
 				enableFilter: ui_widget.Switcher{Title: i18n.Filter},
 				protocol:     ui_widget.Selector{Title: i18n.Protocol},
-				enableHTTP:   ui_widget.Switcher{Title: "HTTP"},
-				enableTLS:    ui_widget.Switcher{Title: "TLS"},
+				enableHTTP:   ui_widget.Switcher{Title: i18n.HTTP},
+				enableTLS:    ui_widget.Switcher{Title: i18n.TLS},
 				tlsSecure:    ui_widget.Switcher{Title: i18n.VerifyServerCert},
+				fold:         true,
 			}
 			nd.name.SetText(v.Name)
 			nd.addr.SetText(v.Addr)
@@ -435,7 +447,7 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 	}
 }
 
-func (p *servicePage) Layout(gtx C) D {
+func (p *servicePage) Layout(gtx page.C) page.D {
 	if p.btnBack.Clicked(gtx) {
 		p.router.Back()
 	}
@@ -454,48 +466,44 @@ func (p *servicePage) Layout(gtx C) D {
 				p.delete()
 				p.router.Back()
 			}
-			p.modal.Disappear(gtx.Now)
+			p.router.HideModal(gtx)
 		}
-		p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+		p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 			return p.delDialog.Layout(gtx, th)
-		}
-		p.modal.Appear(gtx.Now)
+		})
 	}
 
 	th := p.router.Theme
-
-	defer p.modal.Layout(gtx, th)
 
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
 		// header
-		layout.Rigid(func(gtx C) D {
+		layout.Rigid(func(gtx page.C) page.D {
 			return layout.Inset{
 				Top:    8,
 				Bottom: 8,
 				Left:   8,
 				Right:  8,
-			}.Layout(gtx, func(gtx C) D {
+			}.Layout(gtx, func(gtx page.C) page.D {
 				return layout.Flex{
 					Spacing:   layout.SpaceBetween,
 					Alignment: layout.Middle,
 				}.Layout(gtx,
-					layout.Rigid(func(gtx C) D {
+					layout.Rigid(func(gtx page.C) page.D {
 						btn := material.IconButton(th, &p.btnBack, icons.IconBack, "Back")
 						btn.Color = th.Fg
 						btn.Background = th.Bg
 						return btn.Layout(gtx)
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
-					layout.Flexed(1, func(gtx C) D {
-						title := material.H6(th, "Service")
-						title.Font.Weight = font.Bold
+					layout.Flexed(1, func(gtx page.C) page.D {
+						title := material.H6(th, i18n.Service.Value())
 						return title.Layout(gtx)
 					}),
-					layout.Rigid(func(gtx C) D {
-						if p.create {
-							return D{}
+					layout.Rigid(func(gtx page.C) page.D {
+						if p.perm&page.PermDelete == 0 || p.create {
+							return page.D{}
 						}
 						btn := material.IconButton(th, &p.btnDelete, icons.IconDelete, "Delete")
 						btn.Color = th.Fg
@@ -503,7 +511,10 @@ func (p *servicePage) Layout(gtx C) D {
 						return btn.Layout(gtx)
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
-					layout.Rigid(func(gtx C) D {
+					layout.Rigid(func(gtx page.C) page.D {
+						if p.perm&page.PermWrite == 0 {
+							return page.D{}
+						}
 						if p.edit {
 							btn := material.IconButton(th, &p.btnSave, icons.IconDone, "Done")
 							btn.Color = th.Fg
@@ -519,14 +530,14 @@ func (p *servicePage) Layout(gtx C) D {
 				)
 			})
 		}),
-		layout.Flexed(1, func(gtx C) D {
-			return p.list.Layout(gtx, 1, func(gtx C, index int) D {
+		layout.Flexed(1, func(gtx page.C) page.D {
+			return p.list.Layout(gtx, 1, func(gtx page.C, index int) page.D {
 				return layout.Inset{
 					Top:    8,
 					Bottom: 8,
 					Left:   8,
 					Right:  8,
-				}.Layout(gtx, func(gtx C) D {
+				}.Layout(gtx, func(gtx page.C) page.D {
 					return p.layout(gtx, th)
 				})
 			})
@@ -534,7 +545,7 @@ func (p *servicePage) Layout(gtx C) D {
 	)
 }
 
-func (p *servicePage) layout(gtx C, th *material.Theme) D {
+func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 	src := gtx.Source
 
 	if !p.edit {
@@ -547,141 +558,150 @@ func (p *servicePage) layout(gtx C, th *material.Theme) D {
 			CornerRadius: 12,
 		},
 		Fill: theme.Current().ContentSurfaceBg,
-	}.Layout(gtx, func(gtx C) D {
-		return layout.UniformInset(16).Layout(gtx, func(gtx C) D {
+	}.Layout(gtx, func(gtx page.C) page.D {
+		return layout.UniformInset(16).Layout(gtx, func(gtx page.C) page.D {
 			return layout.Flex{
 				Axis: layout.Vertical,
 			}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				layout.Rigid(func(gtx page.C) page.D {
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
 						layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							gtx.Source = src
-							return material.RadioButton(th, &p.mode, BasicMode, i18n.Basic.Value()).Layout(gtx)
+							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
 						layout.Rigid(layout.Spacer{Width: 8}.Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							gtx.Source = src
-							return material.RadioButton(th, &p.mode, AdvancedMode, i18n.Advanced.Value()).Layout(gtx)
+							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
 					)
 				}),
 
 				layout.Rigid(material.Body1(th, i18n.Name.Value()).Layout),
-				layout.Rigid(func(gtx C) D {
+				layout.Rigid(func(gtx page.C) page.D {
 					return p.name.Layout(gtx, th, "")
 				}),
 				layout.Rigid(layout.Spacer{Height: 4}.Layout),
 
 				layout.Rigid(material.Body1(th, i18n.Address.Value()).Layout),
-				layout.Rigid(func(gtx C) D {
+				layout.Rigid(func(gtx page.C) page.D {
 					return p.addr.Layout(gtx, th, "")
 				}),
 
 				layout.Rigid(layout.Spacer{Height: 4}.Layout),
 
 				/*
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					layout.Rigid(func(gtx page.C) page.D {
 						return p.stats.Layout(gtx, th)
 					}),
 				*/
 
 				// advanced mode
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.mode.Value == BasicMode {
-						return D{}
+				layout.Rigid(func(gtx page.C) page.D {
+					if p.mode.Value == string(page.BasicMode) {
+						return page.D{}
 					}
 
 					return layout.Flex{
 						Axis: layout.Vertical,
 					}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							if p.customInterface.Clicked(gtx) {
-								p.showInterfaceDialog(gtx)
-							}
-							return p.customInterface.Layout(gtx, th)
-						}),
+						/*
+							layout.Rigid(func(gtx page.C) page.D {
+								if p.customInterface.Clicked(gtx) {
+									p.showInterfaceDialog(gtx)
+								}
+								return p.customInterface.Layout(gtx, th)
+							}),
+						*/
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							if p.admission.Clicked(gtx) {
 								p.showAdmissionMenu(gtx)
 							}
 							return p.admission.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							if p.bypass.Clicked(gtx) {
 								p.showBypassMenu(gtx)
 							}
 							return p.bypass.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							if p.resolver.Clicked(gtx) {
 								p.showResolverMenu(gtx)
 							}
 							return p.resolver.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							if p.hostMapper.Clicked(gtx) {
 								p.showHostMapperMenu(gtx)
 							}
 							return p.hostMapper.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							if p.limiter.Clicked(gtx) {
 								p.showLimiterMenu(gtx)
 							}
 							return p.limiter.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							if p.observer.Clicked(gtx) {
 								p.showObserverMenu(gtx)
 							}
 							return p.observer.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						layout.Rigid(func(gtx page.C) page.D {
 							if p.logger.Clicked(gtx) {
 								p.showLoggerMenu(gtx)
 							}
 							return p.logger.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx page.C) page.D {
+							if p.metadataSelector.Clicked(gtx) {
+								p.showMetadataDialog(gtx)
+							}
+							return p.metadataSelector.Layout(gtx, th)
 						}),
 						layout.Rigid(layout.Spacer{Height: 8}.Layout),
 					)
 
 				}),
 
-				layout.Rigid(func(gtx C) D {
+				layout.Rigid(func(gtx page.C) page.D {
 					return layout.Inset{
 						Top:    16,
 						Bottom: 16,
 					}.Layout(gtx, material.H6(th, i18n.Handler.Value()).Layout)
 				}),
 
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				layout.Rigid(func(gtx page.C) page.D {
 					return p.handler.Layout(gtx, th)
 				}),
 
-				layout.Rigid(func(gtx C) D {
+				layout.Rigid(func(gtx page.C) page.D {
 					return layout.Inset{
 						Top:    16,
 						Bottom: 16,
 					}.Layout(gtx, material.H6(th, i18n.Listener.Value()).Layout)
 				}),
 
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				layout.Rigid(func(gtx page.C) page.D {
 					return p.listener.Layout(gtx, th)
 				}),
 
-				layout.Rigid(func(gtx C) D {
+				layout.Rigid(func(gtx page.C) page.D {
 					if !p.handler.canForward() {
-						return D{}
+						return page.D{}
 					}
 
 					return layout.Inset{
@@ -690,9 +710,9 @@ func (p *servicePage) layout(gtx C, th *material.Theme) D {
 					}.Layout(gtx, material.H6(th, i18n.Forwarder.Value()).Layout)
 				}),
 
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				layout.Rigid(func(gtx page.C) page.D {
 					if !p.handler.canForward() {
-						return D{}
+						return page.D{}
 					}
 
 					return p.forwarder.Layout(gtx, th)
@@ -702,7 +722,8 @@ func (p *servicePage) layout(gtx C, th *material.Theme) D {
 	})
 }
 
-func (p *servicePage) showInterfaceDialog(gtx C) {
+/*
+func (p *servicePage) showInterfaceDialog(gtx  page.C)  {
 	p.interfaceDialog.Input.Clear()
 	p.interfaceDialog.Input.SetText(p.customInterface.Value())
 	p.interfaceDialog.OnClick = func(ok bool) {
@@ -713,13 +734,14 @@ func (p *servicePage) showInterfaceDialog(gtx C) {
 			p.customInterface.Select(ui_widget.SelectorItem{Value: strings.TrimSpace(p.interfaceDialog.Input.Text())})
 		}
 	}
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.modal.Widget = func(gtx page.C, th *material.Theme, anim *component.VisibilityAnimation) page.D {
 		return p.interfaceDialog.Layout(gtx, th)
 	}
 	p.modal.Appear(gtx.Now)
 }
+*/
 
-func (p *servicePage) showAdmissionMenu(gtx C) {
+func (p *servicePage) showAdmissionMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Admissions {
 		options = append(options, ui_widget.MenuOption{
@@ -733,7 +755,7 @@ func (p *servicePage) showAdmissionMenu(gtx C) {
 	p.menu.Title = i18n.Admission
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -748,13 +770,12 @@ func (p *servicePage) showAdmissionMenu(gtx C) {
 	p.menu.ShowAdd = true
 	p.menu.Multiple = true
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }
 
-func (p *servicePage) showBypassMenu(gtx C) {
+func (p *servicePage) showBypassMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Bypasses {
 		options = append(options, ui_widget.MenuOption{
@@ -768,7 +789,7 @@ func (p *servicePage) showBypassMenu(gtx C) {
 	p.menu.Title = i18n.Bypass
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -783,13 +804,12 @@ func (p *servicePage) showBypassMenu(gtx C) {
 	p.menu.ShowAdd = true
 	p.menu.Multiple = true
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }
 
-func (p *servicePage) showResolverMenu(gtx C) {
+func (p *servicePage) showResolverMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Resolvers {
 		options = append(options, ui_widget.MenuOption{
@@ -803,7 +823,7 @@ func (p *servicePage) showResolverMenu(gtx C) {
 	p.menu.Title = i18n.Resolver
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -814,17 +834,16 @@ func (p *servicePage) showResolverMenu(gtx C) {
 				p.resolver.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
-		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
+	p.menu.Multiple = false
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }
 
-func (p *servicePage) showHostMapperMenu(gtx C) {
+func (p *servicePage) showHostMapperMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Hosts {
 		options = append(options, ui_widget.MenuOption{
@@ -838,7 +857,7 @@ func (p *servicePage) showHostMapperMenu(gtx C) {
 	p.menu.Title = i18n.Hosts
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -849,17 +868,16 @@ func (p *servicePage) showHostMapperMenu(gtx C) {
 				p.hostMapper.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
-		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
+	p.menu.Multiple = false
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }
 
-func (p *servicePage) showLimiterMenu(gtx C) {
+func (p *servicePage) showLimiterMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Limiters {
 		options = append(options, ui_widget.MenuOption{
@@ -873,7 +891,7 @@ func (p *servicePage) showLimiterMenu(gtx C) {
 	p.menu.Title = i18n.Limiter
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -884,17 +902,16 @@ func (p *servicePage) showLimiterMenu(gtx C) {
 				p.limiter.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
-		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
+	p.menu.Multiple = false
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }
 
-func (p *servicePage) showObserverMenu(gtx C) {
+func (p *servicePage) showObserverMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Observers {
 		options = append(options, ui_widget.MenuOption{
@@ -908,7 +925,7 @@ func (p *servicePage) showObserverMenu(gtx C) {
 	p.menu.Title = i18n.Observer
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -919,17 +936,16 @@ func (p *servicePage) showObserverMenu(gtx C) {
 				p.observer.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
-		p.modal.Disappear(gtx.Now)
 	}
 	p.menu.ShowAdd = true
+	p.menu.Multiple = false
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)
-	}
-	p.modal.Appear(gtx.Now)
+	})
 }
 
-func (p *servicePage) showLoggerMenu(gtx C) {
+func (p *servicePage) showLoggerMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Loggers {
 		options = append(options, ui_widget.MenuOption{
@@ -943,7 +959,7 @@ func (p *servicePage) showLoggerMenu(gtx C) {
 	p.menu.Title = i18n.Logger
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -958,10 +974,36 @@ func (p *servicePage) showLoggerMenu(gtx C) {
 	p.menu.ShowAdd = true
 	p.menu.Multiple = true
 
-	p.modal.Widget = func(gtx layout.Context, th *material.Theme, anim *component.VisibilityAnimation) layout.Dimensions {
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)
+	})
+}
+
+func (p *servicePage) showMetadataDialog(gtx page.C) {
+	p.metadataDialog.Clear()
+	for _, md := range p.metadata {
+		p.metadataDialog.Add(md.K, md.V)
 	}
-	p.modal.Appear(gtx.Now)
+	p.metadataDialog.OnClick = func(ok bool) {
+		p.router.HideModal(gtx)
+		if !ok {
+			return
+		}
+		p.metadata = nil
+		for _, kv := range p.metadataDialog.Metadata() {
+			k, v := kv.Get()
+			p.metadata = append(p.metadata, page.Metadata{
+				K: k,
+				V: v,
+			})
+		}
+		p.metadataSelector.Clear()
+		p.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+	}
+
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+		return p.metadataDialog.Layout(gtx, th)
+	})
 }
 
 func (p *servicePage) save() bool {
@@ -1005,7 +1047,7 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 
 	svcCfg.Name = p.name.Text()
 	svcCfg.Addr = p.addr.Text()
-	svcCfg.Interface = p.customInterface.Value()
+	// svcCfg.Interface = p.customInterface.Value()
 
 	svcCfg.Admission = ""
 	svcCfg.Admissions = p.admission.Values()
@@ -1036,10 +1078,10 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 	svcCfg.Handler.Auther = ""
 	svcCfg.Handler.Authers = nil
 	svcCfg.Handler.Auth = nil
-	if p.handler.authType.Value == AuthTypeAuther {
+	if p.handler.authType.Value == string(page.AuthAuther) {
 		svcCfg.Handler.Authers = p.handler.auther.Values()
 	}
-	if p.handler.authType.Value == AuthTypeSimple {
+	if p.handler.authType.Value == string(page.AuthSimple) {
 		username := strings.TrimSpace(p.handler.username.Text())
 		password := strings.TrimSpace(p.handler.password.Text())
 		if username != "" {
@@ -1058,7 +1100,7 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 		svcCfg.Handler.Metadata = make(map[string]any)
 	}
 	for _, md := range p.handler.metadata {
-		svcCfg.Handler.Metadata[md.k] = md.v
+		svcCfg.Handler.Metadata[md.K] = md.V
 	}
 
 	if svcCfg.Listener == nil {
@@ -1071,10 +1113,10 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 	svcCfg.Listener.Auther = ""
 	svcCfg.Listener.Authers = nil
 	svcCfg.Listener.Auth = nil
-	if p.listener.authType.Value == AuthTypeAuther {
+	if p.listener.authType.Value == string(page.AuthAuther) {
 		svcCfg.Listener.Authers = p.listener.auther.Values()
 	}
-	if p.listener.authType.Value == AuthTypeSimple {
+	if p.listener.authType.Value == string(page.AuthSimple) {
 		username := strings.TrimSpace(p.listener.username.Text())
 		password := strings.TrimSpace(p.listener.password.Text())
 		if username != "" {
@@ -1099,7 +1141,7 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 		svcCfg.Listener.Metadata = make(map[string]any)
 	}
 	for _, md := range p.listener.metadata {
-		svcCfg.Listener.Metadata[md.k] = md.v
+		svcCfg.Listener.Metadata[md.K] = md.V
 	}
 
 	svcCfg.Forwarder = nil

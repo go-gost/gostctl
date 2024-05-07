@@ -16,6 +16,8 @@ import (
 const (
 	uriConfig  = "/config"
 	uriService = uriConfig + "/services"
+	uriChain   = uriConfig + "/chains"
+	uriHop     = uriConfig + "/hops"
 )
 
 var (

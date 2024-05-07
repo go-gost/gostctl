@@ -5,7 +5,6 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/icons"
@@ -14,14 +13,10 @@ import (
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 )
 
-type serverState struct {
-	btn widget.Clickable
-}
-
 type serverList struct {
 	router *page.Router
 	list   layout.List
-	states []serverState
+	states []state
 }
 
 func Server(r *page.Router) List {
@@ -30,24 +25,25 @@ func Server(r *page.Router) List {
 		list: layout.List{
 			Axis: layout.Vertical,
 		},
-		states: make([]serverState, 16),
+		states: make([]state, 16),
 	}
 }
 
-func (l *serverList) Layout(gtx C, th *material.Theme) D {
+func (l *serverList) Layout(gtx page.C, th *page.T) page.D {
 	cfg := config.Get()
 	servers := cfg.Servers
 	if len(servers) > len(l.states) {
 		states := l.states
-		l.states = make([]serverState, len(servers))
+		l.states = make([]state, len(servers))
 		copy(l.states, states)
 	}
 
-	return l.list.Layout(gtx, len(servers), func(gtx C, index int) D {
-		if l.states[index].btn.Clicked(gtx) {
+	return l.list.Layout(gtx, len(servers), func(gtx page.C, index int) page.D {
+		if l.states[index].clk.Clicked(gtx) {
 			l.router.Goto(page.Route{
-				Path: page.PageServerEdit,
+				Path: page.PageServer,
 				ID:   servers[index].Name,
+				Perm: page.PermReadWriteDelete,
 			})
 		}
 
@@ -56,22 +52,22 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 			Bottom: 8,
 			Left:   8,
 			Right:  8,
-		}.Layout(gtx, func(gtx C) D {
+		}.Layout(gtx, func(gtx page.C) page.D {
 			return material.ButtonLayoutStyle{
 				Background:   theme.Current().ListBg,
 				CornerRadius: 12,
-				Button:       &l.states[index].btn,
-			}.Layout(gtx, func(gtx C) D {
-				return layout.UniformInset(16).Layout(gtx, func(gtx C) D {
+				Button:       &l.states[index].clk,
+			}.Layout(gtx, func(gtx page.C) page.D {
+				return layout.UniformInset(16).Layout(gtx, func(gtx page.C) page.D {
 					return layout.Flex{
 						Alignment: layout.Middle,
 						Spacing:   layout.SpaceBetween,
 					}.Layout(gtx,
-						layout.Flexed(1, func(gtx C) D {
+						layout.Flexed(1, func(gtx page.C) page.D {
 							return layout.Flex{
 								Axis: layout.Vertical,
 							}.Layout(gtx,
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									label := material.Body1(th, servers[index].Name)
 									label.Font.Weight = font.SemiBold
 									return label.Layout(gtx)
@@ -79,12 +75,12 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 								layout.Rigid(layout.Spacer{Height: 4}.Layout),
 								layout.Rigid(material.Body2(th, servers[index].URL).Layout),
 								layout.Rigid(layout.Spacer{Height: 4}.Layout),
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									return layout.Flex{
 										Spacing:   layout.SpaceBetween,
 										Alignment: layout.Middle,
 									}.Layout(gtx,
-										layout.Rigid(func(gtx C) D {
+										layout.Rigid(func(gtx page.C) page.D {
 											gtx.Constraints.Min.X = gtx.Dp(16)
 											return icons.IconActionUpdate.Layout(gtx, th.Fg)
 										}),
@@ -93,12 +89,12 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 									)
 								}),
 								layout.Rigid(layout.Spacer{Height: 4}.Layout),
-								layout.Rigid(func(gtx C) D {
+								layout.Rigid(func(gtx page.C) page.D {
 									return layout.Flex{
 										Spacing:   layout.SpaceBetween,
 										Alignment: layout.Middle,
 									}.Layout(gtx,
-										layout.Rigid(func(gtx C) D {
+										layout.Rigid(func(gtx page.C) page.D {
 											gtx.Constraints.Min.X = gtx.Dp(16)
 											return icons.IconActionHourGlassEmpty.Layout(gtx, th.Fg)
 										}),
@@ -109,7 +105,7 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 							)
 						}),
 						layout.Rigid(layout.Spacer{Width: 4}.Layout),
-						layout.Rigid(func(gtx C) D {
+						layout.Rigid(func(gtx page.C) page.D {
 							if index == cfg.CurrentServer {
 								gtx.Constraints.Min.X = gtx.Dp(12)
 								if state := servers[index].State(); state == config.ServerError {
@@ -117,7 +113,7 @@ func (l *serverList) Layout(gtx C, th *material.Theme) D {
 								}
 								return icons.IconCircle.Layout(gtx, color.NRGBA(colornames.Green500))
 							}
-							return D{}
+							return page.D{}
 						}),
 					)
 				})

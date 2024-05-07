@@ -48,11 +48,19 @@ func NewPage(r *page.Router) page.Page {
 		pages: []navPage{
 			{
 				list: list.Server(r),
-				path: page.PageServerEdit,
+				path: page.PageServer,
 			},
 			{
 				list: list.Service(r),
-				path: page.PageServiceEdit,
+				path: page.PageService,
+			},
+			{
+				list: list.Chain(r),
+				path: page.PageChain,
+			},
+			{
+				list: list.Hop(r),
+				path: page.PageHop,
 			},
 		},
 	}
@@ -64,7 +72,10 @@ func (p *homePage) Init(opts ...page.PageOption) {
 func (p *homePage) Layout(gtx C) D {
 	if p.btnAdd.Clicked(gtx) {
 		if current := p.nav.Current(); current < len(p.pages) {
-			p.router.Goto(page.Route{Path: p.pages[current].path})
+			p.router.Goto(page.Route{
+				Path: p.pages[current].path,
+				Perm: page.PermReadWrite,
+			})
 		}
 	}
 

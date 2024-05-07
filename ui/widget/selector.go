@@ -1,17 +1,19 @@
 package widget
 
 import (
-	"strings"
-
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
+	"gioui.org/x/outlay"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/icons"
+	"github.com/go-gost/gostctl/ui/theme"
 )
 
 type SelectorItem struct {
-	Name  i18n.Key
+	Name  string
+	Key   i18n.Key
 	Value string
 }
 
@@ -24,8 +26,8 @@ type Selector struct {
 func (p *Selector) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return material.Clickable(gtx, &p.clickable, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{
-			Top:    8,
-			Bottom: 8,
+			Top:    4,
+			Bottom: 4,
 		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{
 				Alignment: layout.Middle,
@@ -34,23 +36,52 @@ func (p *Selector) Layout(gtx layout.Context, th *material.Theme) layout.Dimensi
 				layout.Rigid(layout.Spacer{Width: 8}.Layout),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						var values []string
+						var names []string
 						for _, item := range p.items {
 							if item.Value == "" {
 								continue
 							}
 
-							value := item.Name.Value()
-							if value == "" {
-								value = item.Value
+							name := item.Name
+							if name == "" {
+								name = item.Key.Value()
 							}
-							values = append(values, value)
+							if name == "" {
+								name = item.Value
+							}
+							names = append(names, name)
 						}
-						return material.Body2(th, strings.Join(values, ",")).Layout(gtx)
+
+						return outlay.FlowWrap{
+							Alignment: layout.Middle,
+						}.Layout(gtx, len(names), func(gtx layout.Context, i int) layout.Dimensions {
+							return layout.UniformInset(4).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return component.SurfaceStyle{
+									Theme:       th,
+									ShadowStyle: component.ShadowStyle{CornerRadius: 12},
+									Fill:        theme.Current().ItemBg,
+								}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return layout.Inset{
+										Top:    4,
+										Bottom: 4,
+										Left:   8,
+										Right:  8,
+									}.Layout(gtx, material.Body2(th, names[i]).Layout)
+								})
+							})
+						})
 					})
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return icons.IconNavRight.Layout(gtx, th.Fg)
+					if len(p.items) > 0 {
+						return layout.Dimensions{}
+					}
+					return layout.Inset{
+						Top:    4,
+						Bottom: 5,
+					}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icons.IconNavRight.Layout(gtx, th.Fg)
+					})
 				}),
 			)
 		})

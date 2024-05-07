@@ -22,11 +22,10 @@ func main() {
 	Init()
 
 	go func() {
-		w := app.NewWindow(
-			app.Title("GOST"),
-			// app.MinSize(800, 600),
-		)
-		err := run(w)
+		var w app.Window
+		w.Option(app.Title("GOST"))
+		// w.Option(app.MinSize(800, 600))
+		err := run(&w)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -61,7 +60,7 @@ func run(w *app.Window) error {
 	ui := ui.NewUI()
 	var ops op.Ops
 	for {
-		switch e := w.NextEvent().(type) {
+		switch e := w.Event().(type) {
 		case app.DestroyEvent:
 			return e.Err
 		case app.FrameEvent:
