@@ -316,7 +316,7 @@ func (p *HandlerConfig) copy() *HandlerConfig {
 }
 
 type ForwarderConfig struct {
-	Name     string               `yaml:",omitempty" json:"name,omitempty"`
+	Hop      string               `yaml:",omitempty" json:"hop,omitempty"`
 	Selector *SelectorConfig      `yaml:",omitempty" json:"selector,omitempty"`
 	Nodes    []*ForwardNodeConfig `json:"nodes"`
 }
@@ -345,17 +345,22 @@ func (p *ForwarderConfig) copy() *ForwarderConfig {
 }
 
 type ForwardNodeConfig struct {
-	Name     string          `yaml:",omitempty" json:"name,omitempty"`
-	Addr     string          `yaml:",omitempty" json:"addr,omitempty"`
-	Host     string          `yaml:",omitempty" json:"host,omitempty"`
-	Network  string          `yaml:",omitempty" json:"network,omitempty"`
-	Protocol string          `yaml:",omitempty" json:"protocol,omitempty"`
-	Path     string          `yaml:",omitempty" json:"path,omitempty"`
-	Bypass   string          `yaml:",omitempty" json:"bypass,omitempty"`
-	Bypasses []string        `yaml:",omitempty" json:"bypasses,omitempty"`
-	HTTP     *HTTPNodeConfig `yaml:",omitempty" json:"http,omitempty"`
-	TLS      *TLSNodeConfig  `yaml:",omitempty" json:"tls,omitempty"`
-	Auth     *AuthConfig     `yaml:",omitempty" json:"auth,omitempty"`
+	Name     string   `yaml:",omitempty" json:"name,omitempty"`
+	Addr     string   `yaml:",omitempty" json:"addr,omitempty"`
+	Network  string   `yaml:",omitempty" json:"network,omitempty"`
+	Bypass   string   `yaml:",omitempty" json:"bypass,omitempty"`
+	Bypasses []string `yaml:",omitempty" json:"bypasses,omitempty"`
+	// DEPRECATED by filter.protocol
+	Protocol string `yaml:",omitempty" json:"protocol,omitempty"`
+	// DEPRECATED by filter.host
+	Host string `yaml:",omitempty" json:"host,omitempty"`
+	// DEPRECATED by filter.path
+	Path string `yaml:",omitempty" json:"path,omitempty"`
+	// DEPRECATED by http.auth
+	Auth   *AuthConfig       `yaml:",omitempty" json:"auth,omitempty"`
+	Filter *NodeFilterConfig `yaml:",omitempty" json:"filter,omitempty"`
+	HTTP   *HTTPNodeConfig   `yaml:",omitempty" json:"http,omitempty"`
+	TLS    *TLSNodeConfig    `yaml:",omitempty" json:"tls,omitempty"`
 }
 
 func (p *ForwardNodeConfig) copy() *ForwardNodeConfig {
@@ -366,6 +371,14 @@ func (p *ForwardNodeConfig) copy() *ForwardNodeConfig {
 	cfg := &ForwardNodeConfig{}
 	*cfg = *p
 
+	if p.Auth != nil {
+		cfg.Auth = &AuthConfig{}
+		*cfg.Auth = *p.Auth
+	}
+	if p.Filter != nil {
+		cfg.Filter = &NodeFilterConfig{}
+		*cfg.Filter = *p.Filter
+	}
 	if p.HTTP != nil {
 		cfg.HTTP = &HTTPNodeConfig{}
 		*cfg.HTTP = *p.HTTP
@@ -374,11 +387,13 @@ func (p *ForwardNodeConfig) copy() *ForwardNodeConfig {
 		cfg.TLS = &TLSNodeConfig{}
 		*cfg.TLS = *p.TLS
 	}
-	if p.Auth != nil {
-		cfg.Auth = &AuthConfig{}
-		*cfg.Auth = *p.Auth
-	}
 	return cfg
+}
+
+type NodeFilterConfig struct {
+	Protocol string `yaml:",omitempty" json:"protocol,omitempty"`
+	Host     string `yaml:",omitempty" json:"host,omitempty"`
+	Path     string `yaml:",omitempty" json:"path,omitempty"`
 }
 
 type HTTPURLRewriteConfig struct {
@@ -536,24 +551,21 @@ type HopConfig struct {
 }
 
 type NodeConfig struct {
-	Name      string           `json:"name"`
-	Addr      string           `yaml:",omitempty" json:"addr,omitempty"`
-	Host      string           `yaml:",omitempty" json:"host,omitempty"`
-	Network   string           `yaml:",omitempty" json:"network,omitempty"`
-	Protocol  string           `yaml:",omitempty" json:"protocol,omitempty"`
-	Path      string           `yaml:",omitempty" json:"path,omitempty"`
-	Interface string           `yaml:",omitempty" json:"interface,omitempty"`
-	SockOpts  *SockOptsConfig  `yaml:"sockopts,omitempty" json:"sockopts,omitempty"`
-	Bypass    string           `yaml:",omitempty" json:"bypass,omitempty"`
-	Bypasses  []string         `yaml:",omitempty" json:"bypasses,omitempty"`
-	Resolver  string           `yaml:",omitempty" json:"resolver,omitempty"`
-	Hosts     string           `yaml:",omitempty" json:"hosts,omitempty"`
-	Connector *ConnectorConfig `yaml:",omitempty" json:"connector,omitempty"`
-	Dialer    *DialerConfig    `yaml:",omitempty" json:"dialer,omitempty"`
-	Metadata  map[string]any   `yaml:",omitempty" json:"metadata,omitempty"`
-	HTTP      *HTTPNodeConfig  `yaml:",omitempty" json:"http,omitempty"`
-	TLS       *TLSNodeConfig   `yaml:",omitempty" json:"tls,omitempty"`
-	Auth      *AuthConfig      `yaml:",omitempty" json:"auth,omitempty"`
+	Name      string            `json:"name"`
+	Addr      string            `yaml:",omitempty" json:"addr,omitempty"`
+	Network   string            `yaml:",omitempty" json:"network,omitempty"`
+	Bypass    string            `yaml:",omitempty" json:"bypass,omitempty"`
+	Bypasses  []string          `yaml:",omitempty" json:"bypasses,omitempty"`
+	Resolver  string            `yaml:",omitempty" json:"resolver,omitempty"`
+	Hosts     string            `yaml:",omitempty" json:"hosts,omitempty"`
+	Connector *ConnectorConfig  `yaml:",omitempty" json:"connector,omitempty"`
+	Dialer    *DialerConfig     `yaml:",omitempty" json:"dialer,omitempty"`
+	Interface string            `yaml:",omitempty" json:"interface,omitempty"`
+	SockOpts  *SockOptsConfig   `yaml:"sockopts,omitempty" json:"sockopts,omitempty"`
+	Filter    *NodeFilterConfig `yaml:",omitempty" json:"filter,omitempty"`
+	HTTP      *HTTPNodeConfig   `yaml:",omitempty" json:"http,omitempty"`
+	TLS       *TLSNodeConfig    `yaml:",omitempty" json:"tls,omitempty"`
+	Metadata  map[string]any    `yaml:",omitempty" json:"metadata,omitempty"`
 }
 
 type TLSConfig struct {

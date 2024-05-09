@@ -43,8 +43,7 @@ type hopPage struct {
 
 	name component.TextField
 
-	selectorFold        bool
-	clkSelector         widget.Clickable
+	enableSelector      ui_widget.Switcher
 	selectorStrategy    ui_widget.Selector
 	selectorMaxFails    component.TextField
 	selectorFailTimeout component.TextField
@@ -55,6 +54,21 @@ type hopPage struct {
 
 	addNode widget.Clickable
 	nodes   []node
+
+	reload component.TextField
+
+	enableFileDataSource ui_widget.Switcher
+	filePath             component.TextField
+
+	enableRedisDataSource ui_widget.Switcher
+	redisAddr             component.TextField
+	redisDB               component.TextField
+	redisPassword         component.TextField
+	redisKey              component.TextField
+
+	enableHTTPDataSource ui_widget.Switcher
+	httpURL              component.TextField
+	httpTimeout          component.TextField
 
 	pluginType ui_widget.Selector
 	pluginAddr component.TextField
@@ -83,6 +97,7 @@ func NewPage(r *page.Router) page.Page {
 			},
 		},
 
+		enableSelector:   ui_widget.Switcher{Title: i18n.Selector},
 		selectorStrategy: ui_widget.Selector{Title: i18n.SelectorStrategy},
 		selectorMaxFails: component.TextField{
 			Editor: widget.Editor{
@@ -98,13 +113,76 @@ func NewPage(r *page.Router) page.Page {
 				Filter:     "1234567890",
 			},
 			Suffix: func(gtx page.C) page.D {
-				return material.Label(r.Theme, r.Theme.TextSize, i18n.TimeSecond.Value()).Layout(gtx)
+				return material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout(gtx)
 			},
 		},
 
 		bypass:     ui_widget.Selector{Title: i18n.Bypass},
 		resolver:   ui_widget.Selector{Title: i18n.Resolver},
 		hostMapper: ui_widget.Selector{Title: i18n.Hosts},
+
+		reload: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     16,
+				Filter:     "1234567890",
+			},
+			Suffix: func(gtx page.C) page.D {
+				return material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout(gtx)
+			},
+		},
+		enableFileDataSource: ui_widget.Switcher{Title: i18n.FileDataSource},
+		filePath: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     128,
+			},
+		},
+
+		enableRedisDataSource: ui_widget.Switcher{Title: i18n.RedisDataSource},
+		redisAddr: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     128,
+			},
+		},
+		redisDB: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     16,
+				Filter:     "1234567890",
+			},
+		},
+		redisPassword: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		redisKey: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+
+		enableHTTPDataSource: ui_widget.Switcher{Title: i18n.HTTPDataSource},
+		httpURL: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		httpTimeout: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     16,
+				Filter:     "1234567890",
+			},
+			Suffix: func(gtx page.C) page.D {
+				return material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout(gtx)
+			},
+		},
 
 		pluginType: ui_widget.Selector{Title: i18n.Type},
 		pluginAddr: component.TextField{
@@ -158,16 +236,16 @@ func (p *hopPage) Init(opts ...page.PageOption) {
 	p.name.SetText(hop.Name)
 
 	{
-		p.selectorFold = true
+		p.enableSelector.SetValue(false)
 		p.selectorStrategy.Clear()
 		p.selectorMaxFails.Clear()
 		p.selectorFailTimeout.Clear()
 
 		if hop.Selector != nil {
-			p.selectorFold = false
+			p.enableSelector.SetValue(true)
 			for i := range selectorStrategyOptions {
 				if selectorStrategyOptions[i].Value == hop.Selector.Strategy {
-					p.selectorStrategy.Select(ui_widget.SelectorItem{Key: selectorStrategyOptions[i].Key, Value: selectorStrategyOptions[i].Value})
+					p.selectorStrategy.Select(ui_widget.SelectorItem{Name: selectorStrategyOptions[i].Name, Key: selectorStrategyOptions[i].Key, Value: selectorStrategyOptions[i].Value})
 					break
 				}
 			}
@@ -207,6 +285,32 @@ func (p *hopPage) Init(opts ...page.PageOption) {
 				id:  uuid.New().String(),
 				cfg: v,
 			})
+		}
+	}
+
+	{
+		p.reload.SetText(strconv.Itoa(int(hop.Reload.Seconds())))
+
+		p.enableFileDataSource.SetValue(false)
+		if hop.File != nil {
+			p.enableFileDataSource.SetValue(true)
+			p.filePath.SetText(hop.File.Path)
+		}
+
+		p.enableRedisDataSource.SetValue(false)
+		if hop.Redis != nil {
+			p.enableRedisDataSource.SetValue(true)
+			p.redisAddr.SetText(hop.Redis.Addr)
+			p.redisDB.SetText(strconv.Itoa(hop.Redis.DB))
+			p.redisPassword.SetText(hop.Redis.Password)
+			p.redisKey.SetText(hop.Redis.Key)
+		}
+
+		p.enableHTTPDataSource.SetValue(false)
+		if hop.HTTP != nil {
+			p.enableHTTPDataSource.SetValue(true)
+			p.httpURL.SetText(hop.HTTP.URL)
+			p.httpTimeout.SetText(strconv.Itoa(int(hop.HTTP.Timeout.Seconds())))
 		}
 	}
 
@@ -381,15 +485,16 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 					return layout.Flex{
 						Axis: layout.Vertical,
 					}.Layout(gtx,
+						layout.Rigid(material.Body1(th, i18n.Address.Value()).Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							return p.pluginAddr.Layout(gtx, th, "")
+						}),
+						layout.Rigid(layout.Spacer{Height: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							if p.pluginType.Clicked(gtx) {
 								p.showPluginTypeMenu(gtx)
 							}
 							return p.pluginType.Layout(gtx, th)
-						}),
-
-						layout.Rigid(func(gtx page.C) page.D {
-							return p.pluginAddr.Layout(gtx, th, i18n.Address.Value())
 						}),
 					)
 				}),
@@ -405,64 +510,32 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 					}.Layout(gtx,
 						// Selector
 						layout.Rigid(func(gtx page.C) page.D {
-							if p.clkSelector.Clicked(gtx) {
-								p.selectorFold = !p.selectorFold
+							return p.enableSelector.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx page.C) page.D {
+							if !p.enableSelector.Value() {
+								return page.D{}
 							}
 
-							return material.Clickable(gtx, &p.clkSelector, func(gtx page.C) page.D {
-								return layout.Inset{
-									Top:    8,
-									Bottom: 8,
-								}.Layout(gtx, func(gtx page.C) page.D {
-									return layout.Flex{
-										Alignment: layout.Middle,
-									}.Layout(gtx,
-										layout.Flexed(1, func(gtx page.C) page.D {
-											return material.Body1(th, i18n.Selector.Value()).Layout(gtx)
-										}),
-										layout.Rigid(func(gtx page.C) page.D {
-											if p.selectorFold {
-												return icons.IconNavRight.Layout(gtx, th.Fg)
-											}
-											return icons.IconNavExpandMore.Layout(gtx, th.Fg)
-										}),
-									)
-								})
+							return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(func(gtx page.C) page.D {
+										if p.selectorStrategy.Clicked(gtx) {
+											p.showSelectorStrategyMenu(gtx)
+										}
+										return p.selectorStrategy.Layout(gtx, th)
+									}),
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.selectorMaxFails.Layout(gtx, th, "Max fails")
+									}),
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.selectorFailTimeout.Layout(gtx, th, "Fail timeout in seconds")
+									}),
+								)
 							})
-						}),
-
-						layout.Rigid(func(gtx page.C) page.D {
-							if p.selectorFold {
-								return page.D{}
-							}
-
-							if p.selectorStrategy.Clicked(gtx) {
-								p.showSelectorStrategyMenu(gtx)
-							}
-							return p.selectorStrategy.Layout(gtx, th)
-						}),
-
-						layout.Rigid(func(gtx page.C) page.D {
-							if p.selectorFold {
-								return page.D{}
-							}
-
-							return p.selectorMaxFails.Layout(gtx, th, "Max fails")
-						}),
-
-						layout.Rigid(func(gtx page.C) page.D {
-							if p.selectorFold {
-								return page.D{}
-							}
-
-							return p.selectorFailTimeout.Layout(gtx, th, "Fail timeout in seconds")
-						}),
-
-						layout.Rigid(func(gtx page.C) page.D {
-							if p.selectorFold {
-								return page.D{}
-							}
-							return layout.Spacer{Height: 8}.Layout(gtx)
 						}),
 
 						layout.Rigid(func(gtx page.C) page.D {
@@ -510,9 +583,7 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 							return layout.Inset{
 								Top:    16,
 								Bottom: 16,
-							}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return material.Body1(th, i18n.Nodes.Value()).Layout(gtx)
-							})
+							}.Layout(gtx, material.Body1(th, i18n.Nodes.Value()).Layout)
 						}),
 						layout.Rigid(func(gtx page.C) page.D {
 							if !p.edit {
@@ -531,6 +602,12 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 					}
 					gtx.Source = src
 					return p.layoutNodes(gtx, th)
+				}),
+				layout.Rigid(func(gtx page.C) page.D {
+					if p.mode.Value != string(page.AdvancedMode) {
+						return page.D{}
+					}
+					return p.layoutDataSource(gtx, th)
 				}),
 			)
 		})
@@ -581,8 +658,8 @@ func (p *hopPage) layoutNodes(gtx page.C, th *page.T) page.D {
 				layout.Flexed(1, func(gtx page.C) page.D {
 					return material.Clickable(gtx, &node.clk, func(gtx page.C) page.D {
 						return layout.Inset{
-							Top:    12,
-							Bottom: 12,
+							Top:    8,
+							Bottom: 8,
 							Left:   8,
 							Right:  8,
 						}.Layout(gtx, func(gtx page.C) page.D {
@@ -617,6 +694,110 @@ func (p *hopPage) layoutNodes(gtx page.C, th *page.T) page.D {
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx, children...)
+}
+
+func (p *hopPage) layoutDataSource(gtx page.C, th *page.T) page.D {
+	if p.mode.Value != string(page.AdvancedMode) {
+		return page.D{}
+	}
+
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(gtx,
+		layout.Rigid(func(gtx page.C) page.D {
+			return layout.Inset{
+				Top:    16,
+				Bottom: 16,
+			}.Layout(gtx, material.H6(th, i18n.DataSource.Value()).Layout)
+		}),
+
+		layout.Rigid(material.Body1(th, i18n.DataSourceReload.Value()).Layout),
+		layout.Rigid(func(gtx page.C) page.D {
+			return p.reload.Layout(gtx, th, "")
+		}),
+		layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+		layout.Rigid(func(gtx page.C) page.D {
+			return p.enableFileDataSource.Layout(gtx, th)
+		}),
+		layout.Rigid(func(gtx page.C) page.D {
+			if !p.enableFileDataSource.Value() {
+				return page.D{}
+			}
+			return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+				return layout.Flex{
+					Axis: layout.Vertical,
+				}.Layout(gtx,
+					layout.Rigid(material.Body1(th, i18n.FilePath.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.filePath.Layout(gtx, th, "")
+					}),
+				)
+			})
+		}),
+
+		layout.Rigid(func(gtx page.C) page.D {
+			return p.enableRedisDataSource.Layout(gtx, th)
+		}),
+		layout.Rigid(func(gtx page.C) page.D {
+			if !p.enableRedisDataSource.Value() {
+				return page.D{}
+			}
+			return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+				return layout.Flex{
+					Axis: layout.Vertical,
+				}.Layout(gtx,
+					layout.Rigid(material.Body1(th, i18n.RedisAddr.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.redisAddr.Layout(gtx, th, "")
+					}),
+					layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+					layout.Rigid(material.Body1(th, i18n.RedisDB.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.redisDB.Layout(gtx, th, "")
+					}),
+					layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+					layout.Rigid(material.Body1(th, i18n.RedisPassword.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.redisPassword.Layout(gtx, th, "")
+					}),
+					layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+					layout.Rigid(material.Body1(th, i18n.RedisKey.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.redisKey.Layout(gtx, th, "")
+					}),
+				)
+			})
+		}),
+
+		layout.Rigid(func(gtx page.C) page.D {
+			return p.enableHTTPDataSource.Layout(gtx, th)
+		}),
+		layout.Rigid(func(gtx page.C) page.D {
+			if !p.enableHTTPDataSource.Value() {
+				return page.D{}
+			}
+			return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+				return layout.Flex{
+					Axis: layout.Vertical,
+				}.Layout(gtx,
+					layout.Rigid(material.Body1(th, i18n.HTTPURL.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.httpURL.Layout(gtx, th, "")
+					}),
+					layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+					layout.Rigid(material.Body1(th, i18n.HTTPTimeout.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.httpTimeout.Layout(gtx, th, "")
+					}),
+				)
+			})
+		}),
+	)
 }
 
 var (
@@ -872,6 +1053,33 @@ func (p *hopPage) generateConfig() *api.HopConfig {
 
 	for i := range p.nodes {
 		cfg.Nodes = append(cfg.Nodes, p.nodes[i].cfg)
+	}
+
+	reload, _ := strconv.Atoi(p.reload.Text())
+	cfg.Reload = time.Duration(reload) * time.Second
+
+	if p.enableFileDataSource.Value() {
+		cfg.File = &api.FileLoader{
+			Path: strings.TrimSpace(p.filePath.Text()),
+		}
+	}
+
+	if p.enableRedisDataSource.Value() {
+		db, _ := strconv.Atoi(p.redisDB.Text())
+		cfg.Redis = &api.RedisLoader{
+			Addr:     strings.TrimSpace(p.redisAddr.Text()),
+			DB:       db,
+			Password: strings.TrimSpace(p.redisPassword.Text()),
+			Key:      strings.TrimSpace(p.redisKey.Text()),
+		}
+	}
+
+	if p.enableHTTPDataSource.Value() {
+		timeout, _ := strconv.Atoi(p.httpTimeout.Text())
+		cfg.HTTP = &api.HTTPLoader{
+			URL:     strings.TrimSpace(p.httpURL.Text()),
+			Timeout: time.Duration(timeout) * time.Second,
+		}
 	}
 
 	return cfg

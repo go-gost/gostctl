@@ -14,9 +14,8 @@ import (
 )
 
 type handler struct {
-	router *page.Router
-	menu   ui_widget.Menu
-	mode   *widget.Enum
+	service *servicePage
+	menu    ui_widget.Menu
 
 	typ   ui_widget.Selector
 	chain ui_widget.Selector
@@ -34,6 +33,75 @@ type handler struct {
 	metadataDialog   ui_widget.MetadataDialog
 }
 
+func newHandler(service *servicePage) *handler {
+	return &handler{
+		service:          service,
+		typ:              ui_widget.Selector{Title: i18n.Type},
+		chain:            ui_widget.Selector{Title: i18n.Chain},
+		auther:           ui_widget.Selector{Title: i18n.Auther},
+		limiter:          ui_widget.Selector{Title: i18n.Limiter},
+		observer:         ui_widget.Selector{Title: i18n.Observer},
+		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
+		metadataDialog:   ui_widget.MetadataDialog{},
+	}
+
+}
+
+func (h *handler) init(cfg *api.HandlerConfig) {
+	if cfg == nil {
+		cfg = &api.HandlerConfig{}
+	}
+
+	h.typ.Clear()
+	for i := range handlerTypeAdvancedOptions {
+		if handlerTypeAdvancedOptions[i].Value == cfg.Type {
+			h.typ.Select(ui_widget.SelectorItem{Name: handlerTypeAdvancedOptions[i].Name, Key: handlerTypeAdvancedOptions[i].Key, Value: handlerTypeAdvancedOptions[i].Value})
+			break
+		}
+	}
+
+	h.chain.Clear()
+	h.chain.Select(ui_widget.SelectorItem{Value: cfg.Chain})
+
+	{
+		h.username.Clear()
+		h.password.Clear()
+		h.authType.Value = ""
+
+		if cfg.Auth != nil {
+			h.username.SetText(cfg.Auth.Username)
+			h.password.SetText(cfg.Auth.Password)
+			h.authType.Value = string(page.AuthSimple)
+		}
+
+		h.auther.Clear()
+		var items []ui_widget.SelectorItem
+		if cfg.Auther != "" {
+			items = append(items, ui_widget.SelectorItem{Value: cfg.Auther})
+		}
+		for _, v := range cfg.Authers {
+			items = append(items, ui_widget.SelectorItem{Value: v})
+		}
+		h.auther.Select(items...)
+
+		if len(cfg.Authers) > 0 || cfg.Auther != "" {
+			h.authType.Value = string(page.AuthAuther)
+		}
+	}
+
+	h.metadata = nil
+	meta := api.NewMetadata(cfg.Metadata)
+	for k := range cfg.Metadata {
+		md := page.Metadata{
+			K: k,
+			V: meta.GetString(k),
+		}
+		h.metadata = append(h.metadata, md)
+	}
+	h.metadataSelector.Clear()
+	h.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(h.metadata))})
+}
+
 func (h *handler) Layout(gtx page.C, th *page.T) page.D {
 	return layout.Flex{
 		Axis: layout.Vertical,
@@ -44,6 +112,14 @@ func (h *handler) Layout(gtx page.C, th *page.T) page.D {
 			}
 
 			return h.typ.Layout(gtx, th)
+		}),
+
+		layout.Rigid(func(gtx page.C) page.D {
+			if h.chain.Clicked(gtx) {
+				h.showChainMenu(gtx)
+			}
+
+			return h.chain.Layout(gtx, th)
 		}),
 
 		// auth for handler
@@ -70,7 +146,7 @@ func (h *handler) Layout(gtx page.C, th *page.T) page.D {
 							layout.Rigid(func(gtx page.C) page.D {
 								return material.RadioButton(th, &h.authType, string(page.AuthSimple), i18n.AuthSimple.Value()).Layout(gtx)
 							}),
-							layout.Rigid(layout.Spacer{Width: 8}.Layout),
+							layout.Rigid(layout.Spacer{Width: 4}.Layout),
 							layout.Rigid(func(gtx page.C) page.D {
 								return material.RadioButton(th, &h.authType, string(page.AuthAuther), i18n.AuthAuther.Value()).Layout(gtx)
 							}),
@@ -82,17 +158,27 @@ func (h *handler) Layout(gtx page.C, th *page.T) page.D {
 						return page.D{}
 					}
 
-					return layout.Flex{
-						Axis: layout.Vertical,
-					}.Layout(gtx,
-						layout.Rigid(func(gtx page.C) page.D {
-							return h.username.Layout(gtx, th, i18n.Username.Value())
-						}),
-						layout.Rigid(func(gtx page.C) page.D {
-							return h.password.Layout(gtx, th, i18n.Password.Value())
-						}),
-						layout.Rigid(layout.Spacer{Height: 4}.Layout),
-					)
+					return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+						return layout.Flex{
+							Axis: layout.Vertical,
+						}.Layout(gtx,
+							layout.Rigid(func(gtx page.C) page.D {
+								return material.Body1(th, i18n.Username.Value()).Layout(gtx)
+							}),
+							layout.Rigid(func(gtx page.C) page.D {
+								return h.username.Layout(gtx, th, "")
+							}),
+							layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+							layout.Rigid(func(gtx page.C) page.D {
+								return material.Body1(th, i18n.Password.Value()).Layout(gtx)
+							}),
+							layout.Rigid(func(gtx page.C) page.D {
+								return h.password.Layout(gtx, th, "")
+							}),
+							layout.Rigid(layout.Spacer{Height: 8}.Layout),
+						)
+					})
 				}),
 
 				layout.Rigid(func(gtx page.C) page.D {
@@ -104,22 +190,16 @@ func (h *handler) Layout(gtx page.C, th *page.T) page.D {
 						h.showAutherMenu(gtx)
 					}
 
-					return h.auther.Layout(gtx, th)
+					return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+						return h.auther.Layout(gtx, th)
+					})
 				}),
 			)
 		}),
 
-		layout.Rigid(func(gtx page.C) page.D {
-			if h.chain.Clicked(gtx) {
-				h.showChainMenu(gtx)
-			}
-
-			return h.chain.Layout(gtx, th)
-		}),
-
 		// advanced mode
 		layout.Rigid(func(gtx page.C) page.D {
-			if h.mode.Value == string(page.BasicMode) {
+			if h.service.mode.Value == string(page.BasicMode) {
 				return page.D{}
 			}
 
@@ -188,8 +268,8 @@ var (
 
 		{Name: "TCP Redirector", Value: "red"},
 		{Name: "UDP Redirector", Value: "redu"},
-		{Name: "TUN Device", Value: "tun"},
-		{Name: "TAP Device", Value: "tap"},
+		{Name: "TUN", Value: "tun"},
+		{Name: "TAP", Value: "tap"},
 		{Key: i18n.ReverseProxyTunnel, Value: "tunnel"},
 
 		{Key: i18n.FileServer, Value: "file"},
@@ -208,7 +288,7 @@ func (h *handler) canForward() bool {
 
 func (h *handler) showTypeMenu(gtx page.C) {
 	options := handlerTypeOptions
-	if h.mode.Value == string(page.AdvancedMode) {
+	if h.service.mode.Value == string(page.AdvancedMode) {
 		options = handlerTypeAdvancedOptions
 	}
 
@@ -219,7 +299,7 @@ func (h *handler) showTypeMenu(gtx page.C) {
 	h.menu.Title = i18n.Handler
 	h.menu.Options = options
 	h.menu.OnClick = func(ok bool) {
-		h.router.HideModal(gtx)
+		h.service.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -234,7 +314,7 @@ func (h *handler) showTypeMenu(gtx page.C) {
 	h.menu.ShowAdd = false
 	h.menu.Multiple = false
 
-	h.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return h.menu.Layout(gtx, th)
 	})
 }
@@ -253,7 +333,7 @@ func (h *handler) showChainMenu(gtx page.C) {
 	h.menu.Title = i18n.Chain
 	h.menu.Options = options
 	h.menu.OnClick = func(ok bool) {
-		h.router.HideModal(gtx)
+		h.service.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -268,7 +348,7 @@ func (h *handler) showChainMenu(gtx page.C) {
 	h.menu.ShowAdd = true
 	h.menu.Multiple = false
 
-	h.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return h.menu.Layout(gtx, th)
 	})
 }
@@ -287,7 +367,7 @@ func (h *handler) showAutherMenu(gtx page.C) {
 	h.menu.Title = i18n.Auther
 	h.menu.Options = options
 	h.menu.OnClick = func(ok bool) {
-		h.router.HideModal(gtx)
+		h.service.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -302,7 +382,7 @@ func (h *handler) showAutherMenu(gtx page.C) {
 	h.menu.ShowAdd = true
 	h.menu.Multiple = true
 
-	h.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return h.menu.Layout(gtx, th)
 	})
 }
@@ -321,7 +401,7 @@ func (h *handler) showLimiterMenu(gtx page.C) {
 	h.menu.Title = i18n.Limiter
 	h.menu.Options = options
 	h.menu.OnClick = func(ok bool) {
-		h.router.HideModal(gtx)
+		h.service.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -336,7 +416,7 @@ func (h *handler) showLimiterMenu(gtx page.C) {
 	h.menu.ShowAdd = true
 	h.menu.Multiple = false
 
-	h.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return h.menu.Layout(gtx, th)
 	})
 }
@@ -355,7 +435,7 @@ func (h *handler) showObserverMenu(gtx page.C) {
 	h.menu.Title = i18n.Observer
 	h.menu.Options = options
 	h.menu.OnClick = func(ok bool) {
-		h.router.HideModal(gtx)
+		h.service.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -370,7 +450,7 @@ func (h *handler) showObserverMenu(gtx page.C) {
 	h.menu.ShowAdd = true
 	h.menu.Multiple = false
 
-	h.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return h.menu.Layout(gtx, th)
 	})
 }
@@ -381,7 +461,7 @@ func (h *handler) showMetadataDialog(gtx page.C) {
 		h.metadataDialog.Add(md.K, md.V)
 	}
 	h.metadataDialog.OnClick = func(ok bool) {
-		h.router.HideModal(gtx)
+		h.service.router.HideModal(gtx)
 		if !ok {
 			return
 		}
@@ -397,7 +477,7 @@ func (h *handler) showMetadataDialog(gtx page.C) {
 		h.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(h.metadata))})
 	}
 
-	h.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return h.metadataDialog.Layout(gtx, th)
 	})
 }

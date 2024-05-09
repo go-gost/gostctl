@@ -59,9 +59,9 @@ type servicePage struct {
 	metadataDialog   ui_widget.MetadataDialog
 	delDialog        ui_widget.Dialog
 
-	handler   handler
-	listener  listener
-	forwarder forwarder
+	handler   *handler
+	listener  *listener
+	forwarder *forwarder
 }
 
 func NewPage(r *page.Router) page.Page {
@@ -113,34 +113,9 @@ func NewPage(r *page.Router) page.Page {
 		metadataDialog:   ui_widget.MetadataDialog{},
 	}
 
-	p.handler = handler{
-		router:           r,
-		mode:             &p.mode,
-		typ:              ui_widget.Selector{Title: i18n.Type},
-		chain:            ui_widget.Selector{Title: i18n.Chain},
-		auther:           ui_widget.Selector{Title: i18n.Auther},
-		limiter:          ui_widget.Selector{Title: i18n.Limiter},
-		observer:         ui_widget.Selector{Title: i18n.Observer},
-		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
-		metadataDialog:   ui_widget.MetadataDialog{},
-	}
-	p.listener = listener{
-		router:           r,
-		mode:             &p.mode,
-		typ:              ui_widget.Selector{Title: i18n.Type},
-		chain:            ui_widget.Selector{Title: i18n.Chain},
-		auther:           ui_widget.Selector{Title: i18n.Auther},
-		enableTLS:        ui_widget.Switcher{Title: i18n.TLS},
-		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
-		metadataDialog:   ui_widget.MetadataDialog{},
-	}
-	p.forwarder = forwarder{
-		router: r,
-		mode:   &p.mode,
-		delDialog: ui_widget.Dialog{
-			Title: i18n.DeleteNode,
-		},
-	}
+	p.handler = newHandler(p)
+	p.listener = newListener(p)
+	p.forwarder = newForwarder(p)
 
 	return p
 }
@@ -266,185 +241,9 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		p.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
 	}
 
-	{
-		h := service.Handler
-		if h == nil {
-			h = &api.HandlerConfig{}
-		}
-
-		p.handler.typ.Clear()
-		for i := range handlerTypeAdvancedOptions {
-			if handlerTypeAdvancedOptions[i].Value == h.Type {
-				p.handler.typ.Select(ui_widget.SelectorItem{Name: handlerTypeAdvancedOptions[i].Name, Key: handlerTypeAdvancedOptions[i].Key, Value: handlerTypeAdvancedOptions[i].Value})
-				break
-			}
-		}
-
-		p.handler.chain.Clear()
-		p.handler.chain.Select(ui_widget.SelectorItem{Value: h.Chain})
-
-		{
-			p.handler.username.Clear()
-			p.handler.password.Clear()
-			p.handler.authType.Value = ""
-
-			if h.Auth != nil {
-				p.handler.username.SetText(h.Auth.Username)
-				p.handler.password.SetText(h.Auth.Password)
-				p.handler.authType.Value = string(page.AuthSimple)
-			}
-
-			p.handler.auther.Clear()
-			var items []ui_widget.SelectorItem
-			if h.Auther != "" {
-				items = append(items, ui_widget.SelectorItem{Value: h.Auther})
-			}
-			for _, v := range h.Authers {
-				items = append(items, ui_widget.SelectorItem{Value: v})
-			}
-			p.handler.auther.Select(items...)
-
-			if len(h.Authers) > 0 || h.Auther != "" {
-				p.handler.authType.Value = string(page.AuthAuther)
-			}
-		}
-
-		p.handler.metadata = nil
-		meta := api.NewMetadata(h.Metadata)
-		for k := range h.Metadata {
-			md := page.Metadata{
-				K: k,
-				V: meta.GetString(k),
-			}
-			p.handler.metadata = append(p.handler.metadata, md)
-		}
-		p.handler.metadataSelector.Clear()
-		p.handler.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.handler.metadata))})
-	}
-
-	{
-		ln := service.Listener
-		if ln == nil {
-			ln = &api.ListenerConfig{}
-		}
-
-		p.listener.typ.Clear()
-		p.listener.typ.Select(ui_widget.SelectorItem{Value: ln.Type})
-
-		p.listener.chain.Clear()
-		p.listener.chain.Select(ui_widget.SelectorItem{Value: ln.Chain})
-
-		{
-			p.listener.username.Clear()
-			p.listener.password.Clear()
-			p.listener.authType.Value = ""
-
-			if ln.Auth != nil {
-				p.listener.username.SetText(ln.Auth.Username)
-				p.listener.password.SetText(ln.Auth.Password)
-				p.listener.authType.Value = string(page.AuthSimple)
-			}
-
-			p.listener.auther.Clear()
-			var items []ui_widget.SelectorItem
-			if ln.Auther != "" {
-				items = append(items, ui_widget.SelectorItem{Value: ln.Auther})
-			}
-			for _, v := range ln.Authers {
-				items = append(items, ui_widget.SelectorItem{Value: v})
-			}
-			p.listener.auther.Select(items...)
-			if len(ln.Authers) > 0 || ln.Auther != "" {
-				p.listener.authType.Value = string(page.AuthAuther)
-			}
-		}
-
-		{
-			p.listener.enableTLS.SetValue(false)
-			p.listener.tlsCertFile.Clear()
-			p.listener.tlsKeyFile.Clear()
-			p.listener.tlsCAFile.Clear()
-
-			if tls := ln.TLS; tls != nil {
-				p.listener.enableTLS.SetValue(true)
-				p.listener.tlsCertFile.SetText(tls.CertFile)
-				p.listener.tlsKeyFile.SetText(tls.KeyFile)
-				p.listener.tlsCAFile.SetText(tls.CAFile)
-			}
-		}
-
-		p.listener.metadata = nil
-		meta := api.NewMetadata(ln.Metadata)
-		for k := range ln.Metadata {
-			md := page.Metadata{
-				K: k,
-				V: meta.GetString(k),
-			}
-			p.listener.metadata = append(p.listener.metadata, md)
-		}
-		p.listener.metadataSelector.Clear()
-		p.listener.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.listener.metadata))})
-	}
-
-	{
-		fwd := service.Forwarder
-		if fwd == nil {
-			fwd = &api.ForwarderConfig{}
-		}
-
-		p.forwarder.nodes = nil
-
-		for _, v := range fwd.Nodes {
-			if v == nil {
-				continue
-			}
-
-			nd := node{
-				bypass:       ui_widget.Selector{Title: i18n.Bypass},
-				enableFilter: ui_widget.Switcher{Title: i18n.Filter},
-				protocol:     ui_widget.Selector{Title: i18n.Protocol},
-				enableHTTP:   ui_widget.Switcher{Title: i18n.HTTP},
-				enableTLS:    ui_widget.Switcher{Title: i18n.TLS},
-				tlsSecure:    ui_widget.Switcher{Title: i18n.VerifyServerCert},
-				fold:         true,
-			}
-			nd.name.SetText(v.Name)
-			nd.addr.SetText(v.Addr)
-
-			var items []ui_widget.SelectorItem
-			if v.Bypass != "" {
-				items = append(items, ui_widget.SelectorItem{Value: v.Bypass})
-			}
-			for _, v := range v.Bypasses {
-				items = append(items, ui_widget.SelectorItem{Value: v})
-			}
-			nd.bypass.Select(items...)
-
-			nd.protocol.Select(ui_widget.SelectorItem{Value: v.Protocol})
-			nd.host.SetText(v.Host)
-			nd.path.SetText(v.Path)
-			if v.Protocol != "" || v.Host != "" || v.Path != "" {
-				nd.enableFilter.SetValue(true)
-			}
-
-			if v.HTTP != nil {
-				nd.enableHTTP.SetValue(true)
-				nd.httpHost.SetText(v.HTTP.Host)
-				if v.HTTP.Auth != nil {
-					nd.httpUsername.SetText(v.HTTP.Auth.Username)
-					nd.httpPassword.SetText(v.HTTP.Auth.Password)
-				}
-			}
-
-			if v.TLS != nil {
-				nd.enableTLS.SetValue(true)
-				nd.tlsSecure.SetValue(v.TLS.Secure)
-				nd.tlsServerName.SetText(v.TLS.ServerName)
-			}
-
-			p.forwarder.nodes = append(p.forwarder.nodes, nd)
-		}
-	}
+	p.handler.init(service.Handler)
+	p.listener.init(service.Listener)
+	p.forwarder.init(service.Forwarder)
 }
 
 func (p *servicePage) Layout(gtx page.C) page.D {
@@ -532,12 +331,7 @@ func (p *servicePage) Layout(gtx page.C) page.D {
 		}),
 		layout.Flexed(1, func(gtx page.C) page.D {
 			return p.list.Layout(gtx, 1, func(gtx page.C, index int) page.D {
-				return layout.Inset{
-					Top:    8,
-					Bottom: 8,
-					Left:   8,
-					Right:  8,
-				}.Layout(gtx, func(gtx page.C) page.D {
+				return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
 					return p.layout(gtx, th)
 				})
 			})
@@ -564,17 +358,16 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 				Axis: layout.Vertical,
 			}.Layout(gtx,
 				layout.Rigid(func(gtx page.C) page.D {
+					gtx.Source = src
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
-						layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
+						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
-							gtx.Source = src
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 8}.Layout),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
-							gtx.Source = src
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
 					)
@@ -714,7 +507,7 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 					if !p.handler.canForward() {
 						return page.D{}
 					}
-
+					gtx.Source = src
 					return p.forwarder.Layout(gtx, th)
 				}),
 			)
@@ -1149,36 +942,7 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 		svcCfg.Forwarder = &api.ForwarderConfig{}
 
 		for _, node := range p.forwarder.nodes {
-			nodeCfg := &api.ForwardNodeConfig{
-				Name:     node.name.Text(),
-				Addr:     node.addr.Text(),
-				Bypasses: node.bypass.Values(),
-			}
-			if node.enableFilter.Value() {
-				nodeCfg.Host = node.host.Text()
-				nodeCfg.Protocol = node.protocol.Value()
-				nodeCfg.Path = node.path.Text()
-			}
-			if node.enableHTTP.Value() {
-				nodeCfg.HTTP = &api.HTTPNodeConfig{
-					Host: node.httpHost.Text(),
-				}
-				username := strings.TrimSpace(node.httpUsername.Text())
-				password := strings.TrimSpace(node.httpPassword.Text())
-				if username != "" {
-					nodeCfg.HTTP.Auth = &api.AuthConfig{
-						Username: username,
-						Password: password,
-					}
-				}
-			}
-			if node.enableTLS.Value() {
-				nodeCfg.TLS = &api.TLSNodeConfig{
-					Secure:     node.tlsSecure.Value(),
-					ServerName: node.tlsServerName.Text(),
-				}
-			}
-			svcCfg.Forwarder.Nodes = append(svcCfg.Forwarder.Nodes, nodeCfg)
+			svcCfg.Forwarder.Nodes = append(svcCfg.Forwarder.Nodes, node.cfg)
 		}
 	}
 

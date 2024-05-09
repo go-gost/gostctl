@@ -31,12 +31,21 @@ type nodePage struct {
 	name component.TextField
 	addr component.TextField
 
-	bypass     ui_widget.Selector
-	resolver   ui_widget.Selector
-	hostMapper ui_widget.Selector
+	bypass ui_widget.Selector
 
-	connector *connector
-	dialer    *dialer
+	enableFilter   ui_widget.Switcher
+	protocolFilter ui_widget.Selector
+	hostFilter     component.TextField
+	pathFilter     component.TextField
+
+	enableHTTP   ui_widget.Switcher
+	httpHost     component.TextField
+	httpUsername component.TextField
+	httpPassword component.TextField
+
+	enableTLS     ui_widget.Switcher
+	tlsSecure     ui_widget.Switcher
+	tlsServerName component.TextField
 
 	id       string
 	perm     page.Perm
@@ -63,14 +72,52 @@ func NewPage(r *page.Router) page.Page {
 			},
 		},
 
-		bypass:     ui_widget.Selector{Title: i18n.Bypass},
-		resolver:   ui_widget.Selector{Title: i18n.Resolver},
-		hostMapper: ui_widget.Selector{Title: i18n.Hosts},
+		bypass:         ui_widget.Selector{Title: i18n.Bypass},
+		enableFilter:   ui_widget.Switcher{Title: i18n.Filter},
+		protocolFilter: ui_widget.Selector{Title: i18n.Protocol},
+		hostFilter: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		pathFilter: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		enableHTTP: ui_widget.Switcher{Title: i18n.HTTP},
+		httpHost: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		httpUsername: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		httpPassword: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+
+		enableTLS: ui_widget.Switcher{Title: i18n.TLS},
+		tlsSecure: ui_widget.Switcher{Title: i18n.VerifyServerCert},
+		tlsServerName: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
 
 		delDialog: ui_widget.Dialog{Title: i18n.DeleteService},
 	}
-	p.connector = newConnector(p)
-	p.dialer = newDialer(p)
 
 	return p
 }
@@ -82,9 +129,9 @@ func (p *nodePage) Init(opts ...page.PageOption) {
 	}
 
 	p.id = options.ID
-	node, _ := options.Value.(*api.NodeConfig)
+	node, _ := options.Value.(*api.ForwardNodeConfig)
 	if node == nil {
-		node = &api.NodeConfig{}
+		node = &api.ForwardNodeConfig{}
 	}
 	p.callback = options.Callback
 
@@ -119,18 +166,46 @@ func (p *nodePage) Init(opts ...page.PageOption) {
 		p.bypass.Select(items...)
 	}
 
-	p.resolver.Clear()
-	if node.Resolver != "" {
-		p.resolver.Select(ui_widget.SelectorItem{Value: node.Resolver})
+	p.enableFilter.SetValue(false)
+	filter := node.Filter
+	if filter == nil {
+		if node.Protocol != "" || node.Host != "" || node.Path != "" {
+			filter = &api.NodeFilterConfig{
+				Protocol: node.Protocol,
+				Host:     node.Host,
+				Path:     node.Path,
+			}
+		}
+	}
+	if filter != nil {
+		p.enableFilter.SetValue(true)
+		p.protocolFilter.Clear()
+		for i := range protocolOptions {
+			if protocolOptions[i].Value == filter.Protocol {
+				p.protocolFilter.Select(ui_widget.SelectorItem{Name: protocolOptions[i].Name, Key: protocolOptions[i].Key, Value: protocolOptions[i].Value})
+				break
+			}
+		}
+		p.hostFilter.SetText(filter.Host)
+		p.pathFilter.SetText(filter.Path)
 	}
 
-	p.hostMapper.Clear()
-	if node.Hosts != "" {
-		p.hostMapper.Select(ui_widget.SelectorItem{Value: node.Hosts})
+	p.enableHTTP.SetValue(false)
+	if node.HTTP != nil {
+		p.enableHTTP.SetValue(true)
+		p.httpHost.SetText(node.HTTP.Host)
+		if node.HTTP.Auth != nil {
+			p.httpUsername.SetText(node.HTTP.Auth.Username)
+			p.httpPassword.SetText(node.HTTP.Auth.Password)
+		}
 	}
 
-	p.connector.init(node.Connector)
-	p.dialer.init(node.Dialer)
+	p.enableTLS.SetValue(false)
+	if node.TLS != nil {
+		p.enableTLS.SetValue(true)
+		p.tlsSecure.SetValue(node.TLS.Secure)
+		p.tlsServerName.SetText(node.TLS.ServerName)
+	}
 }
 
 func (p *nodePage) Layout(gtx page.C) page.D {
@@ -219,7 +294,12 @@ func (p *nodePage) Layout(gtx page.C) page.D {
 		}),
 		layout.Flexed(1, func(gtx page.C) page.D {
 			return p.list.Layout(gtx, 1, func(gtx page.C, index int) page.D {
-				return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+				return layout.Inset{
+					Top:    8,
+					Bottom: 8,
+					Left:   8,
+					Right:  8,
+				}.Layout(gtx, func(gtx page.C) page.D {
 					return p.layout(gtx, th)
 				})
 			})
@@ -246,16 +326,17 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 				Axis: layout.Vertical,
 			}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					gtx.Source = src
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
 						layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Source = src
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
 						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Source = src
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
 					)
@@ -265,12 +346,12 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 				layout.Rigid(func(gtx page.C) page.D {
 					return p.name.Layout(gtx, th, "")
 				}),
-				layout.Rigid(layout.Spacer{Height: 8}.Layout),
+				layout.Rigid(layout.Spacer{Height: 4}.Layout),
 				layout.Rigid(material.Body1(th, i18n.Address.Value()).Layout),
 				layout.Rigid(func(gtx page.C) page.D {
 					return p.addr.Layout(gtx, th, "")
 				}),
-				layout.Rigid(layout.Spacer{Height: 8}.Layout),
+				layout.Rigid(layout.Spacer{Height: 4}.Layout),
 
 				// advanced mode
 				layout.Rigid(func(gtx page.C) page.D {
@@ -287,42 +368,99 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 							}
 							return p.bypass.Layout(gtx, th)
 						}),
-
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							if p.resolver.Clicked(gtx) {
-								p.showResolverMenu(gtx)
-							}
-							return p.resolver.Layout(gtx, th)
+						layout.Rigid(func(gtx page.C) page.D {
+							return p.enableFilter.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							if p.hostMapper.Clicked(gtx) {
-								p.showHostMapperMenu(gtx)
+						layout.Rigid(func(gtx page.C) page.D {
+							if !p.enableFilter.Value() {
+								return page.D{}
 							}
-							return p.hostMapper.Layout(gtx, th)
+
+							return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(func(gtx page.C) page.D {
+										if p.protocolFilter.Clicked(gtx) {
+											p.showProtocolMenu(gtx)
+										}
+										return p.protocolFilter.Layout(gtx, th)
+									}),
+
+									layout.Rigid(func(gtx page.C) page.D {
+										return material.Body1(th, i18n.Host.Value()).Layout(gtx)
+									}),
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.hostFilter.Layout(gtx, th, "")
+									}),
+									layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+									layout.Rigid(func(gtx page.C) page.D {
+										return material.Body1(th, i18n.Path.Value()).Layout(gtx)
+									}),
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.pathFilter.Layout(gtx, th, "")
+									}),
+								)
+							})
 						}),
 
-						layout.Rigid(layout.Spacer{Height: 8}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							return p.enableHTTP.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx page.C) page.D {
+							if !p.enableHTTP.Value() {
+								return page.D{}
+							}
+
+							return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.httpHost.Layout(gtx, th, i18n.RewriteHostHeader.Value())
+									}),
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.httpUsername.Layout(gtx, th, i18n.Username.Value())
+									}),
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.httpPassword.Layout(gtx, th, i18n.Password.Value())
+									}),
+									layout.Rigid(layout.Spacer{Height: 4}.Layout),
+								)
+							})
+						}),
+
+						layout.Rigid(func(gtx page.C) page.D {
+							return p.enableTLS.Layout(gtx, th)
+						}),
+
+						layout.Rigid(func(gtx page.C) page.D {
+							if !p.enableTLS.Value() {
+								return page.D{}
+							}
+
+							return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.tlsSecure.Layout(gtx, th)
+									}),
+
+									layout.Rigid(func(gtx page.C) page.D {
+										return material.Body1(th, i18n.ServerName.Value()).Layout(gtx)
+									}),
+
+									layout.Rigid(func(gtx page.C) page.D {
+										return p.tlsServerName.Layout(gtx, th, "")
+									}),
+								)
+							})
+						}),
 					)
-				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					return layout.Inset{
-						Top:    16,
-						Bottom: 16,
-					}.Layout(gtx, material.H6(th, i18n.Connector.Value()).Layout)
-				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					return p.connector.Layout(gtx, th)
-				}),
-
-				layout.Rigid(func(gtx page.C) page.D {
-					return layout.Inset{
-						Top:    16,
-						Bottom: 16,
-					}.Layout(gtx, material.H6(th, i18n.Dialer.Value()).Layout)
-				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					return p.dialer.Layout(gtx, th)
 				}),
 			)
 		})
@@ -363,33 +501,35 @@ func (p *nodePage) showBypassMenu(gtx page.C) {
 	})
 }
 
-func (p *nodePage) showResolverMenu(gtx page.C) {
-	options := []ui_widget.MenuOption{}
-	for _, v := range api.GetConfig().Resolvers {
-		options = append(options, ui_widget.MenuOption{
-			Value: v.Name,
-		})
+var (
+	protocolOptions = []ui_widget.MenuOption{
+		{Name: "HTTP", Value: "http"},
+		{Name: "TLS", Value: "tls"},
+		{Name: "SSH", Value: "ssh"},
 	}
-	for i := range options {
-		options[i].Selected = p.resolver.AnyValue(options[i].Value)
+)
+
+func (p *nodePage) showProtocolMenu(gtx page.C) {
+	for i := range protocolOptions {
+		protocolOptions[i].Selected = p.protocolFilter.AnyValue(protocolOptions[i].Value)
 	}
 
-	p.menu.Title = i18n.Resolver
-	p.menu.Options = options
+	p.menu.Title = i18n.Protocol
+	p.menu.Options = protocolOptions
 	p.menu.OnClick = func(ok bool) {
 		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
 
-		p.resolver.Clear()
+		p.protocolFilter.Clear()
 		for i := range p.menu.Options {
 			if p.menu.Options[i].Selected {
-				p.resolver.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
+				p.protocolFilter.Select(ui_widget.SelectorItem{Name: p.menu.Options[i].Name, Key: p.menu.Options[i].Key, Value: p.menu.Options[i].Value})
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.ShowAdd = false
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -397,91 +537,38 @@ func (p *nodePage) showResolverMenu(gtx page.C) {
 	})
 }
 
-func (p *nodePage) showHostMapperMenu(gtx page.C) {
-	options := []ui_widget.MenuOption{}
-	for _, v := range api.GetConfig().Hosts {
-		options = append(options, ui_widget.MenuOption{
-			Value: v.Name,
-		})
-	}
-	for i := range options {
-		options[i].Selected = p.hostMapper.AnyValue(options[i].Value)
-	}
-
-	p.menu.Title = i18n.Hosts
-	p.menu.Options = options
-	p.menu.OnClick = func(ok bool) {
-		p.router.HideModal(gtx)
-		if !ok {
-			return
-		}
-
-		p.hostMapper.Clear()
-		for i := range p.menu.Options {
-			if p.menu.Options[i].Selected {
-				p.hostMapper.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
-			}
-		}
-	}
-	p.menu.ShowAdd = true
-	p.menu.Multiple = false
-
-	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
-		return p.menu.Layout(gtx, th)
-	})
-}
-
-func (p *nodePage) generateConfig() *api.NodeConfig {
-	node := &api.NodeConfig{
+func (p *nodePage) generateConfig() *api.ForwardNodeConfig {
+	node := &api.ForwardNodeConfig{
 		Name:     strings.TrimSpace(p.name.Text()),
 		Addr:     strings.TrimSpace(p.addr.Text()),
 		Bypasses: p.bypass.Values(),
-		Resolver: p.resolver.Value(),
-		Hosts:    p.hostMapper.Value(),
 	}
-
-	connector := &api.ConnectorConfig{
-		Type: p.connector.typ.Value(),
-	}
-	if p.connector.enableAuth.Value() {
-		connector.Auth = &api.AuthConfig{
-			Username: strings.TrimSpace(p.connector.username.Text()),
-			Password: strings.TrimSpace(p.connector.password.Text()),
+	if p.enableFilter.Value() {
+		node.Filter = &api.NodeFilterConfig{
+			Protocol: p.protocolFilter.Value(),
+			Host:     strings.TrimSpace(p.hostFilter.Text()),
+			Path:     strings.TrimSpace(p.pathFilter.Text()),
 		}
 	}
-	if len(p.connector.metadata) > 0 {
-		connector.Metadata = make(map[string]any)
-	}
-	for _, md := range p.connector.metadata {
-		connector.Metadata[md.K] = md.V
-	}
-	node.Connector = connector
-
-	dialer := &api.DialerConfig{
-		Type: p.dialer.typ.Value(),
-	}
-	if p.dialer.enableAuth.Value() {
-		dialer.Auth = &api.AuthConfig{
-			Username: strings.TrimSpace(p.dialer.username.Text()),
-			Password: strings.TrimSpace(p.dialer.password.Text()),
+	if p.enableHTTP.Value() {
+		node.HTTP = &api.HTTPNodeConfig{
+			Host: strings.TrimSpace(p.httpHost.Text()),
+		}
+		username := strings.TrimSpace(p.httpUsername.Text())
+		password := strings.TrimSpace(p.httpPassword.Text())
+		if username != "" {
+			node.HTTP.Auth = &api.AuthConfig{
+				Username: username,
+				Password: password,
+			}
 		}
 	}
-	if p.dialer.enableTLS.Value() {
-		dialer.TLS = &api.TLSConfig{
-			Secure:     p.dialer.tlsSecure.Value(),
-			ServerName: strings.TrimSpace(p.dialer.tlsServerName.Text()),
-			CertFile:   strings.TrimSpace(p.dialer.tlsCertFile.Text()),
-			KeyFile:    strings.TrimSpace(p.dialer.tlsKeyFile.Text()),
-			CAFile:     strings.TrimSpace(p.dialer.tlsCAFile.Text()),
+	if p.enableTLS.Value() {
+		node.TLS = &api.TLSNodeConfig{
+			ServerName: strings.TrimSpace(p.tlsServerName.Text()),
+			Secure:     p.tlsSecure.Value(),
 		}
 	}
-	if len(p.dialer.metadata) > 0 {
-		dialer.Metadata = make(map[string]any)
-	}
-	for _, md := range p.dialer.metadata {
-		dialer.Metadata[md.K] = md.V
-	}
-	node.Dialer = dialer
 
 	return node
 }
