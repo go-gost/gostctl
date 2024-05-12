@@ -55,8 +55,8 @@ type chainPage struct {
 
 	metadata         []metadata
 	metadataSelector ui_widget.Selector
-	metadataDialog   ui_widget.MetadataDialog
-	delDialog        ui_widget.Dialog
+	// metadataDialog   ui_widget.MetadataDialog
+	delDialog ui_widget.Dialog
 }
 
 func NewPage(r *page.Router) page.Page {
@@ -75,7 +75,7 @@ func NewPage(r *page.Router) page.Page {
 		},
 		delDialog:        ui_widget.Dialog{Title: i18n.DeleteServer},
 		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
-		metadataDialog:   ui_widget.MetadataDialog{},
+		// metadataDialog:   ui_widget.MetadataDialog{},
 	}
 }
 

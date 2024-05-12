@@ -2,6 +2,7 @@ package page
 
 import (
 	"gioui.org/layout"
+	"gioui.org/widget/material"
 )
 
 type PagePath string
@@ -14,6 +15,7 @@ const (
 	PageHop           PagePath = "/hop"
 	PageNode          PagePath = "/node"
 	PageForwarderNode PagePath = "/forwarder/node"
+	PageMetadata      PagePath = "/metadata"
 	PageSettings      PagePath = "/settings"
 )
 
@@ -47,6 +49,10 @@ type PageOptions struct {
 
 type PageOption func(opts *PageOptions)
 
+type C = layout.Context
+type D = layout.Dimensions
+type T = material.Theme
+
 func WithPageID(id string) PageOption {
 	return func(opts *PageOptions) {
 		opts.ID = id
@@ -73,7 +79,7 @@ func WithPagePerm(perm Perm) PageOption {
 
 type Page interface {
 	Init(opts ...PageOption)
-	Layout(gtx layout.Context) layout.Dimensions
+	Layout(gtx C) D
 }
 
 type PageMode string

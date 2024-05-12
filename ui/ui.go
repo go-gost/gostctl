@@ -11,6 +11,7 @@ import (
 	"github.com/go-gost/gostctl/ui/page/chain"
 	"github.com/go-gost/gostctl/ui/page/home"
 	"github.com/go-gost/gostctl/ui/page/hop"
+	"github.com/go-gost/gostctl/ui/page/metadata"
 	"github.com/go-gost/gostctl/ui/page/node"
 	"github.com/go-gost/gostctl/ui/page/server"
 	"github.com/go-gost/gostctl/ui/page/service"
@@ -50,6 +51,7 @@ func NewUI() *UI {
 	router.Register(page.PageHop, hop.NewPage(router))
 	router.Register(page.PageNode, node.NewPage(router))
 	router.Register(page.PageForwarderNode, forwarder_node.NewPage(router))
+	router.Register(page.PageMetadata, metadata.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{

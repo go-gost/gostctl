@@ -18,6 +18,7 @@ import (
 	"github.com/go-gost/gostctl/ui/page"
 	"github.com/go-gost/gostctl/ui/theme"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
+	"github.com/google/uuid"
 )
 
 type servicePage struct {
@@ -54,10 +55,10 @@ type servicePage struct {
 	edit   bool
 	create bool
 
-	metadata         []page.Metadata
-	metadataSelector ui_widget.Selector
-	metadataDialog   ui_widget.MetadataDialog
-	delDialog        ui_widget.Dialog
+	metadata   api.Metadata
+	mdSelector ui_widget.Selector
+
+	delDialog ui_widget.Dialog
 
 	handler   *handler
 	listener  *listener
@@ -109,8 +110,7 @@ func NewPage(r *page.Router) page.Page {
 		logger:     ui_widget.Selector{Title: i18n.Logger},
 		observer:   ui_widget.Selector{Title: i18n.Observer},
 
-		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
-		metadataDialog:   ui_widget.MetadataDialog{},
+		mdSelector: ui_widget.Selector{Title: i18n.Metadata},
 	}
 
 	p.handler = newHandler(p)
@@ -227,19 +227,9 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		p.logger.Select(items...)
 	}
 
-	{
-		p.metadata = nil
-		meta := api.NewMetadata(service.Metadata)
-		for k := range service.Metadata {
-			md := page.Metadata{
-				K: k,
-				V: meta.GetString(k),
-			}
-			p.metadata = append(p.metadata, md)
-		}
-		p.metadataSelector.Clear()
-		p.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
-	}
+	p.metadata = api.NewMetadata(service.Metadata)
+	p.mdSelector.Clear()
+	p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
 
 	p.handler.init(service.Handler)
 	p.listener.init(service.Listener)
@@ -366,7 +356,7 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
@@ -460,10 +450,23 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 						}),
 
 						layout.Rigid(func(gtx page.C) page.D {
-							if p.metadataSelector.Clicked(gtx) {
-								p.showMetadataDialog(gtx)
+							gtx.Source = src
+
+							if p.mdSelector.Clicked(gtx) {
+								perm := page.PermRead
+								if p.edit {
+									perm = page.PermWrite | page.PermDelete
+								}
+								p.router.Goto(page.Route{
+									Path:     page.PageMetadata,
+									ID:       uuid.New().String(),
+									Value:    p.metadata,
+									Callback: p.mdCallback,
+									Perm:     perm,
+								})
 							}
-							return p.metadataSelector.Layout(gtx, th)
+
+							return p.mdSelector.Layout(gtx, th)
 						}),
 						layout.Rigid(layout.Spacer{Height: 8}.Layout),
 					)
@@ -478,6 +481,7 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 				}),
 
 				layout.Rigid(func(gtx page.C) page.D {
+					gtx.Source = src
 					return p.handler.Layout(gtx, th)
 				}),
 
@@ -489,6 +493,7 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 				}),
 
 				layout.Rigid(func(gtx page.C) page.D {
+					gtx.Source = src
 					return p.listener.Layout(gtx, th)
 				}),
 
@@ -772,31 +777,21 @@ func (p *servicePage) showLoggerMenu(gtx page.C) {
 	})
 }
 
-func (p *servicePage) showMetadataDialog(gtx page.C) {
-	p.metadataDialog.Clear()
-	for _, md := range p.metadata {
-		p.metadataDialog.Add(md.K, md.V)
-	}
-	p.metadataDialog.OnClick = func(ok bool) {
-		p.router.HideModal(gtx)
-		if !ok {
-			return
-		}
-		p.metadata = nil
-		for _, kv := range p.metadataDialog.Metadata() {
-			k, v := kv.Get()
-			p.metadata = append(p.metadata, page.Metadata{
-				K: k,
-				V: v,
-			})
-		}
-		p.metadataSelector.Clear()
-		p.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+func (p *servicePage) mdCallback(action page.Action, id string, value any) {
+	if id == "" {
+		return
 	}
 
-	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
-		return p.metadataDialog.Layout(gtx, th)
-	})
+	switch action {
+	case page.ActionUpdate:
+		p.metadata, _ = value.(api.Metadata)
+
+	case page.ActionDelete:
+		p.metadata = nil
+	}
+
+	p.mdSelector.Clear()
+	p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
 }
 
 func (p *servicePage) save() bool {
@@ -888,13 +883,7 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 	svcCfg.Limiter = p.handler.limiter.Value()
 	svcCfg.Observer = p.handler.observer.Value()
 
-	svcCfg.Handler.Metadata = nil
-	if len(p.handler.metadata) > 0 {
-		svcCfg.Handler.Metadata = make(map[string]any)
-	}
-	for _, md := range p.handler.metadata {
-		svcCfg.Handler.Metadata[md.K] = md.V
-	}
+	svcCfg.Handler.Metadata = p.handler.metadata
 
 	if svcCfg.Listener == nil {
 		svcCfg.Listener = &api.ListenerConfig{}
@@ -929,13 +918,7 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 		}
 	}
 
-	svcCfg.Listener.Metadata = nil
-	if len(p.listener.metadata) > 0 {
-		svcCfg.Listener.Metadata = make(map[string]any)
-	}
-	for _, md := range p.listener.metadata {
-		svcCfg.Listener.Metadata[md.K] = md.V
-	}
+	svcCfg.Listener.Metadata = p.listener.metadata
 
 	svcCfg.Forwarder = nil
 	if len(p.forwarder.nodes) > 0 {

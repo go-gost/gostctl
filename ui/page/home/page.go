@@ -12,9 +12,6 @@ import (
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
-type C = layout.Context
-type D = layout.Dimensions
-
 type navPage struct {
 	list list.List
 	path page.PagePath
@@ -69,7 +66,7 @@ func NewPage(r *page.Router) page.Page {
 func (p *homePage) Init(opts ...page.PageOption) {
 }
 
-func (p *homePage) Layout(gtx C) D {
+func (p *homePage) Layout(gtx page.C) page.D {
 	if p.btnAdd.Clicked(gtx) {
 		if current := p.nav.Current(); current < len(p.pages) {
 			p.router.Goto(page.Route{
@@ -84,35 +81,35 @@ func (p *homePage) Layout(gtx C) D {
 	return layout.Stack{
 		Alignment: layout.SE,
 	}.Layout(gtx,
-		layout.Expanded(func(gtx C) D {
+		layout.Expanded(func(gtx page.C) page.D {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			return layout.Flex{
 				Axis: layout.Vertical,
 			}.Layout(gtx,
 				// header
-				layout.Rigid(func(gtx C) D {
+				layout.Rigid(func(gtx page.C) page.D {
 					return layout.Inset{
 						Top:    8,
 						Bottom: 8,
 						Left:   8,
 						Right:  8,
-					}.Layout(gtx, func(gtx C) D {
+					}.Layout(gtx, func(gtx page.C) page.D {
 						return layout.Flex{
 							Spacing:   layout.SpaceBetween,
 							Alignment: layout.Middle,
 						}.Layout(gtx,
-							layout.Rigid(func(gtx C) D {
+							layout.Rigid(func(gtx page.C) page.D {
 								gtx.Constraints.Max.X = gtx.Dp(50)
 								return icons.IconApp.Layout(gtx)
 							}),
 							layout.Rigid(layout.Spacer{Width: 8}.Layout),
-							layout.Rigid(func(gtx C) D {
+							layout.Rigid(func(gtx page.C) page.D {
 								label := material.H6(th, "GOST")
 								label.Font.Weight = font.Bold
 								return label.Layout(gtx)
 							}),
 							layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
-							layout.Rigid(func(gtx C) D {
+							layout.Rigid(func(gtx page.C) page.D {
 								if p.btnSettings.Clicked(gtx) {
 									p.router.Goto(page.Route{
 										Path: page.PageSettings,
@@ -128,23 +125,23 @@ func (p *homePage) Layout(gtx C) D {
 					})
 				}),
 				// nav
-				layout.Rigid(func(gtx C) D {
+				layout.Rigid(func(gtx page.C) page.D {
 					return layout.Inset{
 						Top:    4,
 						Bottom: 4,
-					}.Layout(gtx, func(gtx C) D {
+					}.Layout(gtx, func(gtx page.C) page.D {
 						return p.nav.Layout(gtx, th)
 					})
 				}),
 				// list
-				layout.Flexed(1, func(gtx C) D {
+				layout.Flexed(1, func(gtx page.C) page.D {
 					current := p.nav.Current()
 					if current >= len(p.pages) {
 						current = 0
 					}
 					pg := p.pages[current]
 					if pg.list == nil {
-						return D{
+						return page.D{
 							Size: gtx.Constraints.Max,
 						}
 					}
@@ -153,13 +150,8 @@ func (p *homePage) Layout(gtx C) D {
 				}),
 			)
 		}),
-		layout.Stacked(func(gtx C) D {
-			return layout.Inset{
-				Top:    16,
-				Bottom: 16,
-				Left:   16,
-				Right:  16,
-			}.Layout(gtx, func(gtx C) D {
+		layout.Stacked(func(gtx page.C) page.D {
+			return layout.UniformInset(16).Layout(gtx, func(gtx page.C) page.D {
 				btn := material.IconButton(th, &p.btnAdd, icons.IconAdd, "Add")
 				btn.Inset = layout.UniformInset(16)
 

@@ -89,6 +89,9 @@ const (
 	KeyFile      Key = "keyFile"
 	CAFile       Key = "caFile"
 
+	MetadataKey   Key = "metadataKey"
+	MetadataValue Key = "metadataValue"
+
 	Auth      Key = "auth"
 	BasicAuth Key = "basicAuth"
 	Username  Key = "username"
@@ -124,11 +127,12 @@ const (
 	EnableTLS      Key = "enableTLS"
 	Keepalive      Key = "keepalive"
 
-	DeleteServer  Key = "deleteServer"
-	DeleteService Key = "deleteService"
-	DeleteChain   Key = "deleteChain"
-	DeleteHop     Key = "deleteHop"
-	DeleteNode    Key = "deleteNode"
+	DeleteServer   Key = "deleteServer"
+	DeleteService  Key = "deleteService"
+	DeleteChain    Key = "deleteChain"
+	DeleteHop      Key = "deleteHop"
+	DeleteNode     Key = "deleteNode"
+	DeleteMetadata Key = "deleteMetadata"
 
 	SelectorStrategy Key = "selectorStrategy"
 	SelectorRound    Key = "selectorRound"

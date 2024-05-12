@@ -11,6 +11,7 @@ import (
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/page"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
+	"github.com/google/uuid"
 )
 
 type listener struct {
@@ -30,9 +31,8 @@ type listener struct {
 	tlsKeyFile  component.TextField
 	tlsCAFile   component.TextField
 
-	metadata         []page.Metadata
-	metadataSelector ui_widget.Selector
-	metadataDialog   ui_widget.MetadataDialog
+	metadata   api.Metadata
+	mdSelector ui_widget.Selector
 }
 
 func newListener(service *servicePage) *listener {
@@ -60,8 +60,7 @@ func newListener(service *servicePage) *listener {
 				MaxLen:     255,
 			},
 		},
-		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
-		metadataDialog:   ui_widget.MetadataDialog{},
+		mdSelector: ui_widget.Selector{Title: i18n.Metadata},
 	}
 }
 
@@ -120,20 +119,18 @@ func (l *listener) init(cfg *api.ListenerConfig) {
 		}
 	}
 
-	l.metadata = nil
-	meta := api.NewMetadata(cfg.Metadata)
-	for k := range cfg.Metadata {
-		md := page.Metadata{
-			K: k,
-			V: meta.GetString(k),
-		}
-		l.metadata = append(l.metadata, md)
-	}
-	l.metadataSelector.Clear()
-	l.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
+	l.metadata = api.NewMetadata(cfg.Metadata)
+	l.mdSelector.Clear()
+	l.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
 }
 
 func (l *listener) Layout(gtx page.C, th *page.T) page.D {
+	src := gtx.Source
+
+	if !l.service.edit {
+		gtx = gtx.Disabled()
+	}
+
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
@@ -179,7 +176,7 @@ func (l *listener) Layout(gtx page.C, th *page.T) page.D {
 							layout.Rigid(func(gtx page.C) page.D {
 								return material.RadioButton(th, &l.authType, string(page.AuthSimple), i18n.AuthSimple.Value()).Layout(gtx)
 							}),
-							layout.Rigid(layout.Spacer{Width: 4}.Layout),
+							layout.Rigid(layout.Spacer{Width: 8}.Layout),
 							layout.Rigid(func(gtx page.C) page.D {
 								return material.RadioButton(th, &l.authType, string(page.AuthAuther), i18n.AuthAuther.Value()).Layout(gtx)
 							}),
@@ -285,10 +282,23 @@ func (l *listener) Layout(gtx page.C, th *page.T) page.D {
 		}),
 
 		layout.Rigid(func(gtx page.C) page.D {
-			if l.metadataSelector.Clicked(gtx) {
-				l.showMetadataDialog(gtx)
+			gtx.Source = src
+
+			if l.mdSelector.Clicked(gtx) {
+				perm := page.PermRead
+				if l.service.edit {
+					perm = page.PermWrite | page.PermDelete
+				}
+				l.service.router.Goto(page.Route{
+					Path:     page.PageMetadata,
+					ID:       uuid.New().String(),
+					Value:    l.metadata,
+					Callback: l.mdCallback,
+					Perm:     perm,
+				})
 			}
-			return l.metadataSelector.Layout(gtx, th)
+
+			return l.mdSelector.Layout(gtx, th)
 		}),
 	)
 }
@@ -467,29 +477,19 @@ func (l *listener) showAutherMenu(gtx page.C) {
 	})
 }
 
-func (l *listener) showMetadataDialog(gtx page.C) {
-	l.metadataDialog.Clear()
-	for _, md := range l.metadata {
-		l.metadataDialog.Add(md.K, md.V)
-	}
-	l.metadataDialog.OnClick = func(ok bool) {
-		l.service.router.HideModal(gtx)
-		if !ok {
-			return
-		}
-		l.metadata = nil
-		for _, kv := range l.metadataDialog.Metadata() {
-			k, v := kv.Get()
-			l.metadata = append(l.metadata, page.Metadata{
-				K: k,
-				V: v,
-			})
-		}
-		l.metadataSelector.Clear()
-		l.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
+func (l *listener) mdCallback(action page.Action, id string, value any) {
+	if id == "" {
+		return
 	}
 
-	l.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
-		return l.metadataDialog.Layout(gtx, th)
-	})
+	switch action {
+	case page.ActionUpdate:
+		l.metadata, _ = value.(api.Metadata)
+
+	case page.ActionDelete:
+		l.metadata = nil
+	}
+
+	l.mdSelector.Clear()
+	l.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
 }

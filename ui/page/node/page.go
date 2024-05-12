@@ -254,7 +254,7 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
@@ -312,6 +312,7 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 					}.Layout(gtx, material.H6(th, i18n.Connector.Value()).Layout)
 				}),
 				layout.Rigid(func(gtx page.C) page.D {
+					gtx.Source = src
 					return p.connector.Layout(gtx, th)
 				}),
 
@@ -322,6 +323,7 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 					}.Layout(gtx, material.H6(th, i18n.Dialer.Value()).Layout)
 				}),
 				layout.Rigid(func(gtx page.C) page.D {
+					gtx.Source = src
 					return p.dialer.Layout(gtx, th)
 				}),
 			)
@@ -441,7 +443,8 @@ func (p *nodePage) generateConfig() *api.NodeConfig {
 	}
 
 	connector := &api.ConnectorConfig{
-		Type: p.connector.typ.Value(),
+		Type:     p.connector.typ.Value(),
+		Metadata: p.connector.metadata,
 	}
 	if p.connector.enableAuth.Value() {
 		connector.Auth = &api.AuthConfig{
@@ -449,16 +452,11 @@ func (p *nodePage) generateConfig() *api.NodeConfig {
 			Password: strings.TrimSpace(p.connector.password.Text()),
 		}
 	}
-	if len(p.connector.metadata) > 0 {
-		connector.Metadata = make(map[string]any)
-	}
-	for _, md := range p.connector.metadata {
-		connector.Metadata[md.K] = md.V
-	}
 	node.Connector = connector
 
 	dialer := &api.DialerConfig{
-		Type: p.dialer.typ.Value(),
+		Type:     p.dialer.typ.Value(),
+		Metadata: p.dialer.metadata,
 	}
 	if p.dialer.enableAuth.Value() {
 		dialer.Auth = &api.AuthConfig{
@@ -474,12 +472,6 @@ func (p *nodePage) generateConfig() *api.NodeConfig {
 			KeyFile:    strings.TrimSpace(p.dialer.tlsKeyFile.Text()),
 			CAFile:     strings.TrimSpace(p.dialer.tlsCAFile.Text()),
 		}
-	}
-	if len(p.dialer.metadata) > 0 {
-		dialer.Metadata = make(map[string]any)
-	}
-	for _, md := range p.dialer.metadata {
-		dialer.Metadata[md.K] = md.V
 	}
 	node.Dialer = dialer
 

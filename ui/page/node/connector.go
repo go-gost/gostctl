@@ -10,6 +10,7 @@ import (
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/page"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
+	"github.com/google/uuid"
 )
 
 type connector struct {
@@ -22,18 +23,16 @@ type connector struct {
 	username   component.TextField
 	password   component.TextField
 
-	metadata         []page.Metadata
-	metadataSelector ui_widget.Selector
-	metadataDialog   ui_widget.MetadataDialog
+	metadata   api.Metadata
+	mdSelector ui_widget.Selector
 }
 
 func newConnector(node *nodePage) *connector {
 	return &connector{
-		node:             node,
-		typ:              ui_widget.Selector{Title: i18n.Type},
-		enableAuth:       ui_widget.Switcher{Title: i18n.Auth},
-		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
-		metadataDialog:   ui_widget.MetadataDialog{},
+		node:       node,
+		typ:        ui_widget.Selector{Title: i18n.Type},
+		enableAuth: ui_widget.Switcher{Title: i18n.Auth},
+		mdSelector: ui_widget.Selector{Title: i18n.Metadata},
 	}
 
 }
@@ -63,20 +62,18 @@ func (p *connector) init(cfg *api.ConnectorConfig) {
 		}
 	}
 
-	p.metadata = nil
-	meta := api.NewMetadata(cfg.Metadata)
-	for k := range cfg.Metadata {
-		md := page.Metadata{
-			K: k,
-			V: meta.GetString(k),
-		}
-		p.metadata = append(p.metadata, md)
-	}
-	p.metadataSelector.Clear()
-	p.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+	p.metadata = api.NewMetadata(cfg.Metadata)
+	p.mdSelector.Clear()
+	p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
 }
 
 func (p *connector) Layout(gtx page.C, th *page.T) page.D {
+	src := gtx.Source
+
+	if !p.node.edit {
+		gtx = gtx.Disabled()
+	}
+
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
@@ -129,10 +126,23 @@ func (p *connector) Layout(gtx page.C, th *page.T) page.D {
 		}),
 
 		layout.Rigid(func(gtx page.C) page.D {
-			if p.metadataSelector.Clicked(gtx) {
-				p.showMetadataDialog(gtx)
+			gtx.Source = src
+
+			if p.mdSelector.Clicked(gtx) {
+				perm := page.PermRead
+				if p.node.edit {
+					perm = page.PermWrite | page.PermDelete
+				}
+				p.node.router.Goto(page.Route{
+					Path:     page.PageMetadata,
+					ID:       uuid.New().String(),
+					Value:    p.metadata,
+					Callback: p.mdCallback,
+					Perm:     perm,
+				})
 			}
-			return p.metadataSelector.Layout(gtx, th)
+
+			return p.mdSelector.Layout(gtx, th)
 		}),
 	)
 }
@@ -200,29 +210,19 @@ func (p *connector) showTypeMenu(gtx page.C) {
 	})
 }
 
-func (p *connector) showMetadataDialog(gtx page.C) {
-	p.metadataDialog.Clear()
-	for _, md := range p.metadata {
-		p.metadataDialog.Add(md.K, md.V)
-	}
-	p.metadataDialog.OnClick = func(ok bool) {
-		p.node.router.HideModal(gtx)
-		if !ok {
-			return
-		}
-		p.metadata = nil
-		for _, kv := range p.metadataDialog.Metadata() {
-			k, v := kv.Get()
-			p.metadata = append(p.metadata, page.Metadata{
-				K: k,
-				V: v,
-			})
-		}
-		p.metadataSelector.Clear()
-		p.metadataSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+func (p *connector) mdCallback(action page.Action, id string, value any) {
+	if id == "" {
+		return
 	}
 
-	p.node.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
-		return p.metadataDialog.Layout(gtx, th)
-	})
+	switch action {
+	case page.ActionUpdate:
+		p.metadata, _ = value.(api.Metadata)
+
+	case page.ActionDelete:
+		p.metadata = nil
+	}
+
+	p.mdSelector.Clear()
+	p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
 }

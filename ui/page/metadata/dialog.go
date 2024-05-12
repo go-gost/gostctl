@@ -1,54 +1,23 @@
-package widget
+package metadata
 
 import (
 	"strings"
-	"sync"
 
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/go-gost/gostctl/ui/i18n"
-	"github.com/go-gost/gostctl/ui/icons"
 )
 
-type MetadataDialog struct {
+type metadataDialog struct {
+	kv        kv
 	OnClick   func(ok bool)
-	list      material.ListStyle
-	btnAdd    widget.Clickable
 	btnCancel widget.Clickable
 	btnOK     widget.Clickable
-	metadata  []*kv
-	once      sync.Once
 }
 
-func (p *MetadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	p.once.Do(func() {
-		p.list = material.List(th, &widget.List{
-			List: layout.List{
-				Axis: layout.Vertical,
-			},
-		})
-		p.list.AnchorStrategy = material.Overlay
-	})
-
-	if p.btnAdd.Clicked(gtx) {
-		p.metadata = append(p.metadata, &kv{
-			k: component.TextField{
-				Editor: widget.Editor{
-					SingleLine: true,
-					MaxLen:     255,
-				},
-			},
-			v: component.TextField{
-				Editor: widget.Editor{
-					SingleLine: true,
-					MaxLen:     255,
-				},
-			},
-		})
-	}
-
+func (p *metadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{
 			Top:    16,
@@ -77,34 +46,17 @@ func (p *MetadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.D
 								return layout.Flex{
 									Alignment: layout.Middle,
 								}.Layout(gtx,
-									layout.Flexed(1, material.H6(th, "Metadata").Layout),
-									layout.Rigid(layout.Spacer{Width: 8}.Layout),
-									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-										btn := material.IconButton(th, &p.btnAdd, icons.IconAdd, "Add")
-										btn.Background = th.Bg
-										btn.Color = th.Fg
-										return btn.Layout(gtx)
-									}),
+									layout.Flexed(1, material.H6(th, i18n.Metadata.Value()).Layout),
 								)
 							})
 						}),
 
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							for i := range p.metadata {
-								if p.metadata[i].remove.Clicked(gtx) {
-									p.metadata = append(p.metadata[:i], p.metadata[i+1:]...)
-									break
-								}
-							}
-
-							gtx.Constraints.Max.Y -= gtx.Dp(80)
 							return layout.Inset{
 								Top:    8,
 								Bottom: 8,
 							}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return p.list.Layout(gtx, len(p.metadata), func(gtx layout.Context, index int) layout.Dimensions {
-									return p.metadata[index].Layout(gtx, th)
-								})
+								return p.kv.Layout(gtx, th)
 							})
 						}),
 
@@ -181,25 +133,9 @@ func (p *MetadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.D
 	})
 }
 
-func (p *MetadataDialog) Add(k, v string) {
-	kv := &kv{}
-	kv.k.SetText(k)
-	kv.v.SetText(v)
-	p.metadata = append(p.metadata, kv)
-}
-
-func (p *MetadataDialog) Clear() {
-	p.metadata = nil
-}
-
-func (p *MetadataDialog) Metadata() []*kv {
-	return p.metadata
-}
-
 type kv struct {
-	k      component.TextField
-	v      component.TextField
-	remove widget.Clickable
+	k component.TextField
+	v component.TextField
 }
 
 func (p *kv) Get() (string, string) {
@@ -219,21 +155,17 @@ func (p *kv) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 		Right:  24,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{
-			Alignment: layout.End,
+			Axis: layout.Vertical,
 		}.Layout(gtx,
-			layout.Flexed(0.4, func(gtx layout.Context) layout.Dimensions {
-				return p.k.Layout(gtx, th, "Key")
-			}),
-			layout.Rigid(layout.Spacer{Width: 8}.Layout),
-			layout.Flexed(0.4, func(gtx layout.Context) layout.Dimensions {
-				return p.v.Layout(gtx, th, "Value")
-			}),
-			layout.Rigid(layout.Spacer{Width: 8}.Layout),
+			layout.Rigid(material.Body1(th, i18n.MetadataKey.Value()).Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				btn := material.IconButton(th, &p.remove, icons.IconDelete, "Remove")
-				btn.Color = th.Fg
-				btn.Background = th.Bg
-				return btn.Layout(gtx)
+				return p.k.Layout(gtx, th, "")
+			}),
+			layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+			layout.Rigid(material.Body1(th, i18n.MetadataValue.Value()).Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return p.v.Layout(gtx, th, "")
 			}),
 		)
 	})

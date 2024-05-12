@@ -18,10 +18,6 @@ const (
 	MaxWidth = 800
 )
 
-type C = layout.Context
-type D = layout.Dimensions
-type T = material.Theme
-
 type Route struct {
 	Path     PagePath
 	ID       string

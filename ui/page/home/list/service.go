@@ -123,7 +123,7 @@ func (l *serviceList) Layout(gtx page.C, th *page.T) page.D {
 								}),
 								layout.Rigid(layout.Spacer{Width: 4}.Layout),
 								layout.Rigid(func(gtx page.C) page.D {
-									gtx.Constraints.Min.X = gtx.Dp(12)
+									gtx.Constraints.Min.X = gtx.Dp(10)
 									return icons.IconCircle.Layout(gtx, color.NRGBA(c))
 								}),
 								layout.Rigid(layout.Spacer{Width: 4}.Layout),
