@@ -1,9 +1,14 @@
 package widget
 
 import (
-	"github.com/go-gost/gostctl/ui/page"
+	"gioui.org/layout"
+	"gioui.org/widget/material"
 )
 
+type C = layout.Context
+type D = layout.Dimensions
+type T = material.Theme
+
 type Widget interface {
-	Layout(gtx page.C, th *page.T) page.D
+	Layout(gtx C, th *T) D
 }

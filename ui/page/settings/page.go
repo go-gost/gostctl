@@ -137,13 +137,14 @@ func (p *settingsPage) layout(gtx layout.Context, th *material.Theme) layout.Dim
 			}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Max.X = gtx.Dp(60)
 						return icons.IconApp.Layout(gtx)
 					})
 				}),
 				layout.Rigid(layout.Spacer{Height: 8}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					label := material.H6(th, "GOST")
-					label.Font.Weight = font.Bold
+					label.Font.Weight = font.SemiBold
 					return label.Layout(gtx)
 				}),
 				layout.Rigid(layout.Spacer{Height: 8}.Layout),

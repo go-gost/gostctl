@@ -401,7 +401,7 @@ func (l *listener) showTypeMenu(gtx page.C) {
 			}
 		}
 	}
-	l.menu.ShowAdd = false
+	l.menu.OnAdd = nil
 	l.menu.Multiple = false
 
 	l.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -435,7 +435,13 @@ func (l *listener) showChainMenu(gtx page.C) {
 			}
 		}
 	}
-	l.menu.ShowAdd = true
+	l.menu.OnAdd = func() {
+		l.service.router.Goto(page.Route{
+			Path: page.PageChain,
+			Perm: page.PermReadWrite,
+		})
+		l.service.router.HideModal(gtx)
+	}
 	l.menu.Multiple = false
 
 	l.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -469,7 +475,13 @@ func (l *listener) showAutherMenu(gtx page.C) {
 			}
 		}
 	}
-	l.menu.ShowAdd = true
+	l.menu.OnAdd = func() {
+		l.service.router.Goto(page.Route{
+			Path: page.PageAuther,
+			Perm: page.PermReadWrite,
+		})
+		l.service.router.HideModal(gtx)
+	}
 	l.menu.Multiple = true
 
 	l.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

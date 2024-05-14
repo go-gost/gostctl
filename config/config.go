@@ -163,6 +163,7 @@ type Server struct {
 	Password string        `yaml:",omitempty"`
 	Interval time.Duration `yaml:",omitempty"`
 	Timeout  time.Duration `yaml:",omitempty"`
+	AutoSave string        `yaml:",omitempty"`
 	state    ServerState
 	events   []ServerEvent
 	mu       sync.RWMutex
@@ -190,7 +191,11 @@ func (s *Server) Events() []ServerEvent {
 func (s *Server) AddEvent(event ServerEvent) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.events = append(s.events, event)
+	if len(s.events) > 32 {
+		s.events = append([]ServerEvent{}, s.events[len(s.events)-32:]...)
+	}
 }
 
 type Log struct {

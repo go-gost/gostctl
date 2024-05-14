@@ -1,7 +1,6 @@
 package home
 
 import (
-	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -59,6 +58,10 @@ func NewPage(r *page.Router) page.Page {
 				list: list.Hop(r),
 				path: page.PageHop,
 			},
+			{
+				list: list.Auther(r),
+				path: page.PageAuther,
+			},
 		},
 	}
 }
@@ -99,14 +102,8 @@ func (p *homePage) Layout(gtx page.C) page.D {
 							Alignment: layout.Middle,
 						}.Layout(gtx,
 							layout.Rigid(func(gtx page.C) page.D {
-								gtx.Constraints.Max.X = gtx.Dp(50)
+								gtx.Constraints.Max.X = gtx.Dp(45)
 								return icons.IconApp.Layout(gtx)
-							}),
-							layout.Rigid(layout.Spacer{Width: 8}.Layout),
-							layout.Rigid(func(gtx page.C) page.D {
-								label := material.H6(th, "GOST")
-								label.Font.Weight = font.Bold
-								return label.Layout(gtx)
 							}),
 							layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
 							layout.Rigid(func(gtx page.C) page.D {

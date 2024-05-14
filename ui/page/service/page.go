@@ -565,7 +565,7 @@ func (p *servicePage) showAdmissionMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = true
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -599,7 +599,7 @@ func (p *servicePage) showBypassMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = true
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -633,7 +633,7 @@ func (p *servicePage) showResolverMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -667,7 +667,7 @@ func (p *servicePage) showHostMapperMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -701,7 +701,7 @@ func (p *servicePage) showLimiterMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -735,7 +735,7 @@ func (p *servicePage) showObserverMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -769,7 +769,7 @@ func (p *servicePage) showLoggerMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = true
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

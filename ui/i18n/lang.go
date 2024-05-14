@@ -97,6 +97,8 @@ const (
 	Username  Key = "username"
 	Password  Key = "password"
 
+	AutoSave Key = "autoSave"
+
 	Basic      Key = "basic"
 	Advanced   Key = "advanced"
 	AuthSimple Key = "authSimple"
@@ -133,6 +135,8 @@ const (
 	DeleteHop      Key = "deleteHop"
 	DeleteNode     Key = "deleteNode"
 	DeleteMetadata Key = "deleteMetadata"
+	DeleteAuther   Key = "deleteAuther"
+	DeleteAuth     Key = "deleteAuth"
 
 	SelectorStrategy Key = "selectorStrategy"
 	SelectorRound    Key = "selectorRound"
@@ -153,8 +157,8 @@ const (
 	HTTPTimeout      Key = "httpTimeout"
 	DataSourceReload Key = "dataSourceReload"
 
-	PluginGRPC Key = "gRPC"
-	PluginHTTP Key = "HTTP"
+	PluginGRPC Key = "pluginGRPC"
+	PluginHTTP Key = "pluginHTTP"
 
 	TimeSecond Key = "timeSecond"
 
@@ -175,6 +179,7 @@ const (
 	Unknown Key = "unknown"
 
 	Settings Key = "settings"
+	Config   Key = "config"
 	Language Key = "language"
 	English  Key = "english"
 	Chinese  Key = "chinese"

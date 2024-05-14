@@ -3,7 +3,9 @@ package page
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
+	"gioui.org/app"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -12,6 +14,7 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/go-gost/gostctl/ui/theme"
+	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
 const (
@@ -27,18 +30,24 @@ type Route struct {
 }
 
 type Router struct {
+	w       *app.Window
 	pages   map[PagePath]Page
 	stack   routeStack
 	current Route
 	*material.Theme
-	modal *component.ModalLayer
+	modal        *component.ModalLayer
+	notification *ui_widget.Notification
 }
 
-func NewRouter(th *T) *Router {
+func NewRouter(w *app.Window, th *T) *Router {
 	r := &Router{
+		w:     w,
 		pages: make(map[PagePath]Page),
 		Theme: th,
 		modal: component.NewModal(),
+		notification: ui_widget.NewNotification(3*time.Second, func() {
+			w.Invalidate()
+		}),
 	}
 
 	return r
@@ -107,13 +116,27 @@ func (r *Router) Layout(gtx C) D {
 			}
 
 			inset := layout.Inset{}
-			width := unit.Dp(800)
+			width := unit.Dp(MaxWidth)
 			if x := gtx.Metric.PxToDp(gtx.Constraints.Max.X); x > width {
 				inset.Left = (x - width) / 2
 				inset.Right = inset.Left
 			}
 			return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return page.Layout(gtx)
+				return layout.Stack{
+					Alignment: layout.N,
+				}.Layout(gtx,
+					layout.Expanded(page.Layout),
+					layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{
+							Top:    16,
+							Bottom: 16,
+							Right:  unit.Dp(gtx.Constraints.Max.X / 5),
+							Left:   unit.Dp(gtx.Constraints.Max.X / 5),
+						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return r.notification.Layout(gtx, r.Theme)
+						})
+					}),
+				)
 			})
 		},
 	)
@@ -136,6 +159,10 @@ func (r *Router) ShowModal(gtx C, w func(gtx C, th *T) D) {
 
 func (r *Router) HideModal(gtx C) {
 	r.modal.Disappear(gtx.Now)
+}
+
+func (r *Router) Notify(message ui_widget.Message) {
+	r.notification.Show(message)
 }
 
 type routeStack struct {

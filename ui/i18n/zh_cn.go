@@ -42,10 +42,12 @@ var zh_CN = map[Key]string{
 	MetadataKey:   "键",
 	MetadataValue: "值",
 
-	Auth:          "认证",
-	BasicAuth:     "认证",
-	Username:      "用户名",
-	Password:      "密码",
+	Auth:      "认证",
+	BasicAuth: "认证",
+	Username:  "用户名",
+	Password:  "密码",
+	AutoSave:  "自动保存",
+
 	Basic:         "基础",
 	Advanced:      "高级",
 	AuthSimple:    "单用户",
@@ -75,6 +77,8 @@ var zh_CN = map[Key]string{
 	DeleteHop:      "删除跳跃点？",
 	DeleteNode:     "删除节点？",
 	DeleteMetadata: "删除元数据？",
+	DeleteAuther:   "删除认证器？",
+	DeleteAuth:     "删除认证？",
 
 	SelectorStrategy: "策略",
 	SelectorRound:    "轮询",
@@ -83,7 +87,7 @@ var zh_CN = map[Key]string{
 
 	DataSource:       "数据源",
 	FileDataSource:   "文件",
-	FilePath:         "路径",
+	FilePath:         "文件路径",
 	RedisDataSource:  "Redis",
 	RedisAddr:        "地址",
 	RedisDB:          "数据库",
@@ -123,6 +127,7 @@ var zh_CN = map[Key]string{
 	Unknown: "未知",
 
 	Settings: "设置",
+	Config:   "配置",
 	Language: "语言",
 	English:  "英语",
 	Chinese:  "中文",

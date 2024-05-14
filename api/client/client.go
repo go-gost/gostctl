@@ -18,6 +18,7 @@ const (
 	uriService = uriConfig + "/services"
 	uriChain   = uriConfig + "/chains"
 	uriHop     = uriConfig + "/hops"
+	uriAuther  = uriConfig + "/authers"
 )
 
 var (
@@ -105,7 +106,7 @@ func (c *Client) do(req *http.Request) (io.ReadCloser, error) {
 
 		var rsp api.Response
 		json.NewDecoder(resp.Body).Decode(&rsp)
-		return nil, fmt.Errorf("%d %d %s", resp.StatusCode, rsp.Code, rsp.Msg)
+		return nil, fmt.Errorf("%d %s", rsp.Code, rsp.Msg)
 	}
 
 	return resp.Body, nil

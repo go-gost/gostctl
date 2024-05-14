@@ -1,43 +1,23 @@
-package widget
+package auth
 
 import (
-	"sync"
+	"strings"
 
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/go-gost/gostctl/ui/i18n"
-	"github.com/go-gost/gostctl/ui/icons"
 )
 
-type Menu struct {
-	Title     i18n.Key
-	Options   []MenuOption
+type authDialog struct {
+	kv        kv
 	OnClick   func(ok bool)
-	list      material.ListStyle
-	btnAdd    widget.Clickable
-	OnAdd     func()
-	Multiple  bool
 	btnCancel widget.Clickable
 	btnOK     widget.Clickable
-	once      sync.Once
 }
 
-func (p *Menu) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	p.once.Do(func() {
-		p.list = material.List(th, &widget.List{
-			List: layout.List{
-				Axis: layout.Vertical,
-			},
-		})
-		p.list.AnchorStrategy = material.Overlay
-	})
-
-	if p.btnAdd.Clicked(gtx) && p.OnAdd != nil {
-		p.OnAdd()
-	}
-
+func (p *authDialog) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{
 			Top:    16,
@@ -66,41 +46,17 @@ func (p *Menu) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 								return layout.Flex{
 									Alignment: layout.Middle,
 								}.Layout(gtx,
-									layout.Flexed(1, material.H6(th, p.Title.Value()).Layout),
-									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-										if p.OnAdd == nil {
-											return layout.Dimensions{}
-										}
-										btn := material.IconButton(th, &p.btnAdd, icons.IconAdd, "Add")
-										btn.Background = th.Bg
-										btn.Color = th.Fg
-										// btn.Inset = layout.UniformInset(8)
-										return btn.Layout(gtx)
-									}),
+									layout.Flexed(1, material.H6(th, i18n.Auth.Value()).Layout),
 								)
 							})
 						}),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							gtx.Constraints.Max.Y -= gtx.Dp(80)
 
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return layout.Inset{
 								Top:    8,
 								Bottom: 8,
 							}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return p.list.Layout(gtx, len(p.Options), func(gtx layout.Context, index int) layout.Dimensions {
-									if p.Options[index].state.Clicked(gtx) {
-										if p.Multiple {
-											p.Options[index].Selected = !p.Options[index].Selected
-										} else {
-											for i := range p.Options {
-												p.Options[i].Selected = false
-											}
-											p.Options[index].Selected = true
-										}
-									}
-
-									return p.Options[index].Layout(gtx, th)
-								})
+								return p.kv.Layout(gtx, th)
 							})
 						}),
 
@@ -177,48 +133,40 @@ func (p *Menu) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 	})
 }
 
-type MenuOption struct {
-	state    widget.Clickable
-	Key      i18n.Key
-	Name     string
-	Value    string
-	Selected bool
+type kv struct {
+	k component.TextField
+	v component.TextField
 }
 
-func (p *MenuOption) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	return material.ButtonLayoutStyle{
-		Background: th.Bg,
-		Button:     &p.state,
+func (p *kv) Get() (string, string) {
+	return strings.TrimSpace(p.k.Text()), strings.TrimSpace(p.v.Text())
+}
+
+func (p *kv) Set(k, v string) {
+	p.k.SetText(k)
+	p.v.SetText(v)
+}
+
+func (p *kv) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	return layout.Inset{
+		Top:    8,
+		Bottom: 8,
+		Left:   24,
+		Right:  24,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{
-			Top:    12,
-			Bottom: 12,
-			Left:   24,
-			Right:  24,
-		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{
-				Spacing:   layout.SpaceBetween,
-				Alignment: layout.Middle,
-			}.Layout(gtx,
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					name := p.Name
-					if name == "" {
-						name = p.Key.Value()
-					}
-					if name == "" {
-						name = p.Value
-					}
-					return material.Body2(th, name).Layout(gtx)
-				}),
-				layout.Rigid(layout.Spacer{Width: 8}.Layout),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if p.Selected {
-						gtx.Constraints.Min.X = gtx.Dp(16)
-						return icons.IconDone.Layout(gtx, th.Fg)
-					}
-					return layout.Dimensions{}
-				}),
-			)
-		})
+		return layout.Flex{
+			Axis: layout.Vertical,
+		}.Layout(gtx,
+			layout.Rigid(material.Body1(th, i18n.Username.Value()).Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return p.k.Layout(gtx, th, "")
+			}),
+			layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+			layout.Rigid(material.Body1(th, i18n.Password.Value()).Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return p.v.Layout(gtx, th, "")
+			}),
+		)
 	})
 }

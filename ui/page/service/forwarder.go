@@ -84,9 +84,9 @@ func (p *forwarder) init(cfg *api.ForwarderConfig) {
 
 		if selector := cfg.Selector; selector != nil {
 			p.enableSelector.SetValue(true)
-			for i := range selectorStrategyOptions {
-				if selectorStrategyOptions[i].Value == selector.Strategy {
-					p.selectorStrategy.Select(ui_widget.SelectorItem{Name: selectorStrategyOptions[i].Name, Key: selectorStrategyOptions[i].Key, Value: selectorStrategyOptions[i].Value})
+			for i := range page.SelectorStrategyOptions {
+				if page.SelectorStrategyOptions[i].Value == selector.Strategy {
+					p.selectorStrategy.Select(ui_widget.SelectorItem{Name: page.SelectorStrategyOptions[i].Name, Key: page.SelectorStrategyOptions[i].Key, Value: page.SelectorStrategyOptions[i].Value})
 					break
 				}
 			}
@@ -284,21 +284,13 @@ func (p *forwarder) layoutNodes(gtx page.C, th *page.T) page.D {
 	}.Layout(gtx, children...)
 }
 
-var (
-	selectorStrategyOptions = []ui_widget.MenuOption{
-		{Key: i18n.SelectorRound, Value: "round"},
-		{Key: i18n.SelectorRandom, Value: "rand"},
-		{Key: i18n.SelectorFIFO, Value: "fifo"},
-	}
-)
-
 func (p *forwarder) showSelectorStrategyMenu(gtx page.C) {
-	for i := range selectorStrategyOptions {
-		selectorStrategyOptions[i].Selected = p.selectorStrategy.AnyValue(selectorStrategyOptions[i].Value)
+	for i := range page.SelectorStrategyOptions {
+		page.SelectorStrategyOptions[i].Selected = p.selectorStrategy.AnyValue(page.SelectorStrategyOptions[i].Value)
 	}
 
 	p.menu.Title = i18n.SelectorStrategy
-	p.menu.Options = selectorStrategyOptions
+	p.menu.Options = page.SelectorStrategyOptions
 	p.menu.OnClick = func(ok bool) {
 		p.service.router.HideModal(gtx)
 		if !ok {
@@ -312,7 +304,7 @@ func (p *forwarder) showSelectorStrategyMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = false
+	p.menu.OnAdd = nil
 	p.menu.Multiple = false
 
 	p.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

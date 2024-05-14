@@ -3,6 +3,8 @@ package page
 import (
 	"gioui.org/layout"
 	"gioui.org/widget/material"
+	"github.com/go-gost/gostctl/ui/i18n"
+	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
 type PagePath string
@@ -16,6 +18,8 @@ const (
 	PageNode          PagePath = "/node"
 	PageForwarderNode PagePath = "/forwarder/node"
 	PageMetadata      PagePath = "/metadata"
+	PageAuther        PagePath = "/auther"
+	PageAutherAuths   PagePath = "/auther/auths"
 	PageSettings      PagePath = "/settings"
 )
 
@@ -100,4 +104,17 @@ type AuthType string
 const (
 	AuthSimple AuthType = "simple"
 	AuthAuther AuthType = "auther"
+)
+
+var (
+	SelectorStrategyOptions = []ui_widget.MenuOption{
+		{Key: i18n.SelectorRound, Value: "round"},
+		{Key: i18n.SelectorRandom, Value: "rand"},
+		{Key: i18n.SelectorFIFO, Value: "fifo"},
+	}
+
+	PluginTypeOptions = []ui_widget.MenuOption{
+		{Key: i18n.PluginGRPC, Value: "grpc"},
+		{Key: i18n.PluginHTTP, Value: "http"},
+	}
 )

@@ -358,7 +358,7 @@ func (p *dialer) showTypeMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = false
+	p.menu.OnAdd = nil
 	p.menu.Multiple = false
 
 	p.node.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

@@ -21,6 +21,10 @@ const (
 	TaskCreateHop TaskID = "api.hop.create"
 	TaskUpdateHop TaskID = "api.hop.update"
 	TaskDeleteHop TaskID = "api.hop.delete"
+
+	TaskCreateAuther TaskID = "api.auther.create"
+	TaskUpdateAuther TaskID = "api.auther.update"
+	TaskDeleteAuther TaskID = "api.auther.delete"
 )
 
 type Task interface {

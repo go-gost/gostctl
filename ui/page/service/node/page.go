@@ -493,7 +493,7 @@ func (p *nodePage) showBypassMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = true
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -529,7 +529,7 @@ func (p *nodePage) showProtocolMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = false
+	p.menu.OnAdd = nil
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

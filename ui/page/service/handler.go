@@ -321,7 +321,7 @@ func (h *handler) showTypeMenu(gtx page.C) {
 			}
 		}
 	}
-	h.menu.ShowAdd = false
+	h.menu.OnAdd = nil
 	h.menu.Multiple = false
 
 	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -355,7 +355,13 @@ func (h *handler) showChainMenu(gtx page.C) {
 			}
 		}
 	}
-	h.menu.ShowAdd = true
+	h.menu.OnAdd = func() {
+		h.service.router.Goto(page.Route{
+			Path: page.PageChain,
+			Perm: page.PermReadWrite,
+		})
+		h.service.router.HideModal(gtx)
+	}
 	h.menu.Multiple = false
 
 	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -389,7 +395,13 @@ func (h *handler) showAutherMenu(gtx page.C) {
 			}
 		}
 	}
-	h.menu.ShowAdd = true
+	h.menu.OnAdd = func() {
+		h.service.router.Goto(page.Route{
+			Path: page.PageAuther,
+			Perm: page.PermReadWrite,
+		})
+		h.service.router.HideModal(gtx)
+	}
 	h.menu.Multiple = true
 
 	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -423,7 +435,7 @@ func (h *handler) showLimiterMenu(gtx page.C) {
 			}
 		}
 	}
-	h.menu.ShowAdd = true
+	h.menu.OnAdd = func() {}
 	h.menu.Multiple = false
 
 	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -457,7 +469,7 @@ func (h *handler) showObserverMenu(gtx page.C) {
 			}
 		}
 	}
-	h.menu.ShowAdd = true
+	h.menu.OnAdd = func() {}
 	h.menu.Multiple = false
 
 	h.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

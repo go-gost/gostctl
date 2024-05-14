@@ -73,7 +73,7 @@ func NewPage(r *page.Router) page.Page {
 				MaxLen:     128,
 			},
 		},
-		delDialog:        ui_widget.Dialog{Title: i18n.DeleteServer},
+		delDialog:        ui_widget.Dialog{Title: i18n.DeleteChain},
 		metadataSelector: ui_widget.Selector{Title: i18n.Metadata},
 		// metadataDialog:   ui_widget.MetadataDialog{},
 	}
@@ -380,14 +380,6 @@ func (p *chainPage) showHopMenu(gtx page.C) {
 			Value: v.Name,
 		})
 	}
-	for i := range options {
-		for j := range p.hops {
-			if options[i].Value == p.hops[j].cfg.Name {
-				options[i].Selected = true
-				break
-			}
-		}
-	}
 
 	p.menu.Title = i18n.Hop
 	p.menu.Options = options
@@ -397,22 +389,21 @@ func (p *chainPage) showHopMenu(gtx page.C) {
 			return
 		}
 
-		hops := p.hops
-		p.hops = nil
 		for i := range p.menu.Options {
 			if p.menu.Options[i].Selected {
 				p.hops = append(p.hops, chainHop{cfg: &api.HopConfig{Name: p.menu.Options[i].Value}})
 			}
 		}
-		for i := range hops {
-			if len(hops[i].cfg.Nodes) > 0 {
-				p.hops = append(p.hops, hops[i])
-			}
-		}
 	}
 
-	p.menu.ShowAdd = true
-	p.menu.Multiple = true
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageHop,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
+	}
+	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return p.menu.Layout(gtx, th)

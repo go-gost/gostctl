@@ -15,6 +15,7 @@ import (
 	"github.com/go-gost/gostctl/api/util"
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui"
+	"github.com/go-gost/gostctl/ui/widget"
 	_ "github.com/go-gost/gostctl/winres"
 )
 
@@ -35,29 +36,10 @@ func main() {
 }
 
 func run(w *app.Window) error {
-	go func() {
-		for e := range runner.Event() {
-			if e.TaskID == runner.TaskGetConfig {
-				cfg := config.Get()
-				if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
-					server := cfg.Servers[cfg.CurrentServer]
-					if e.Err != nil {
-						slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
-						server.SetState(config.ServerError)
-						server.AddEvent(config.ServerEvent{
-							Time: time.Now(),
-							Msg:  e.Err.Error(),
-						})
-					} else {
-						server.SetState(config.ServerReady)
-					}
-					w.Invalidate()
-				}
-			}
-		}
-	}()
+	ui := ui.NewUI(w)
 
-	ui := ui.NewUI()
+	go handleTaskEvent(ui)
+
 	var ops op.Ops
 	for {
 		switch e := w.Event().(type) {
@@ -67,6 +49,38 @@ func run(w *app.Window) error {
 			gtx := app.NewContext(&ops, e)
 			ui.Layout(gtx)
 			e.Frame(gtx.Ops)
+		}
+	}
+}
+
+func handleTaskEvent(ui *ui.UI) {
+	for e := range runner.Event() {
+		switch e.TaskID {
+		case runner.TaskGetConfig:
+			cfg := config.Get()
+			if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
+				server := cfg.Servers[cfg.CurrentServer]
+				if e.Err != nil {
+					slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
+					server.SetState(config.ServerError)
+					server.AddEvent(config.ServerEvent{
+						Time: time.Now(),
+						Msg:  e.Err.Error(),
+					})
+				} else {
+					server.SetState(config.ServerReady)
+				}
+				ui.Window().Invalidate()
+			}
+
+		default:
+			if e.Err != nil {
+				slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
+				ui.Router().Notify(widget.Message{
+					Type:    widget.Error,
+					Content: e.Err.Error(),
+				})
+			}
 		}
 	}
 }

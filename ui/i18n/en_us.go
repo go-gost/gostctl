@@ -42,10 +42,12 @@ var en_US = map[Key]string{
 	MetadataKey:   "Key",
 	MetadataValue: "Value",
 
-	Auth:          "Auth",
-	BasicAuth:     "Auth",
-	Username:      "Username",
-	Password:      "Password",
+	Auth:      "Auth",
+	BasicAuth: "Auth",
+	Username:  "Username",
+	Password:  "Password",
+	AutoSave:  "Auto save",
+
 	Basic:         "Basic",
 	Advanced:      "Advanced",
 	AuthSimple:    "Single",
@@ -75,6 +77,8 @@ var en_US = map[Key]string{
 	DeleteHop:      "Delete hop?",
 	DeleteNode:     "Delete node?",
 	DeleteMetadata: "Delete metadata?",
+	DeleteAuther:   "Delete auther?",
+	DeleteAuth:     "Delete auth?",
 
 	SelectorStrategy: "Strategy",
 	SelectorRound:    "Round-Robin",
@@ -83,7 +87,7 @@ var en_US = map[Key]string{
 
 	DataSource:       "Data Source",
 	FileDataSource:   "File",
-	FilePath:         "Path",
+	FilePath:         "File path",
 	RedisDataSource:  "Redis",
 	RedisAddr:        "Address",
 	RedisDB:          "Database",
@@ -122,11 +126,12 @@ var en_US = map[Key]string{
 	Closed:  "Closed",
 	Unknown: "Unknown",
 
-	Theme:    "Theme",
-	Light:    "Light",
-	Dark:     "Dark",
 	Settings: "Settings",
+	Config:   "Config",
 	Language: "Language",
 	English:  "English",
 	Chinese:  "Chinese",
+	Theme:    "Theme",
+	Light:    "Light",
+	Dark:     "Dark",
 }

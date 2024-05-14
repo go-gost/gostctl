@@ -20,6 +20,7 @@ type Palette struct {
 	NavButtonBg         color.NRGBA
 	NavButtonContrastBg color.NRGBA
 	ItemBg              color.NRGBA
+	NotificationBg      color.NRGBA
 }
 
 type Theme struct {
@@ -45,6 +46,7 @@ var (
 			NavButtonBg:         color.NRGBA(colornames.White),
 			NavButtonContrastBg: color.NRGBA(colornames.BlueGrey100),
 			ItemBg:              color.NRGBA(colornames.Grey300),
+			NotificationBg:      color.NRGBA(colornames.Grey200),
 		},
 	}
 
@@ -61,6 +63,7 @@ var (
 			NavButtonBg:         color.NRGBA(colornames.Grey800),
 			NavButtonContrastBg: color.NRGBA(colornames.Grey600),
 			ItemBg:              color.NRGBA(colornames.Grey600),
+			NotificationBg:      color.NRGBA(colornames.Grey800),
 		},
 	}
 )

@@ -41,4 +41,12 @@ func RestartGetConfigTask() {
 		runner.WithInterval(interval),
 		runner.WithCancel(true),
 	)
+
+	if server.AutoSave != "" {
+		runner.Exec(context.Background(),
+			task.SaveConfig(server.AutoSave),
+			runner.WithAync(true),
+			runner.WithCancel(true),
+		)
+	}
 }

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"gioui.org/app"
 	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/text"
@@ -8,6 +9,8 @@ import (
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/page/auther"
+	"github.com/go-gost/gostctl/ui/page/auther/auth"
 	"github.com/go-gost/gostctl/ui/page/chain"
 	"github.com/go-gost/gostctl/ui/page/home"
 	"github.com/go-gost/gostctl/ui/page/hop"
@@ -24,10 +27,11 @@ type C = layout.Context
 type D = layout.Dimensions
 
 type UI struct {
+	w      *app.Window
 	router *page.Router
 }
 
-func NewUI() *UI {
+func NewUI(w *app.Window) *UI {
 	if settings := config.Get().Settings; settings != nil {
 		switch settings.Theme {
 		case theme.Dark:
@@ -43,7 +47,7 @@ func NewUI() *UI {
 	// th.Shaper = text.NewShaper(text.WithCollection(fonts.Collection()))
 	th.Palette = theme.Current().Material
 
-	router := page.NewRouter(th)
+	router := page.NewRouter(w, th)
 	router.Register(page.PageHome, home.NewPage(router))
 	router.Register(page.PageServer, server.NewPage(router))
 	router.Register(page.PageService, service.NewPage(router))
@@ -52,6 +56,8 @@ func NewUI() *UI {
 	router.Register(page.PageNode, node.NewPage(router))
 	router.Register(page.PageForwarderNode, forwarder_node.NewPage(router))
 	router.Register(page.PageMetadata, metadata.NewPage(router))
+	router.Register(page.PageAuther, auther.NewPage(router))
+	router.Register(page.PageAutherAuths, auth.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{
@@ -59,10 +65,19 @@ func NewUI() *UI {
 	})
 
 	return &UI{
+		w:      w,
 		router: router,
 	}
 }
 
 func (ui *UI) Layout(gtx C) D {
 	return ui.router.Layout(gtx)
+}
+
+func (ui *UI) Window() *app.Window {
+	return ui.w
+}
+
+func (ui *UI) Router() *page.Router {
+	return ui.router
 }

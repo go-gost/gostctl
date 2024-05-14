@@ -67,7 +67,7 @@ func NewPage(r *page.Router) page.Page {
 		resolver:   ui_widget.Selector{Title: i18n.Resolver},
 		hostMapper: ui_widget.Selector{Title: i18n.Hosts},
 
-		delDialog: ui_widget.Dialog{Title: i18n.DeleteService},
+		delDialog: ui_widget.Dialog{Title: i18n.DeleteNode},
 	}
 	p.connector = newConnector(p)
 	p.dialer = newDialer(p)
@@ -357,7 +357,7 @@ func (p *nodePage) showBypassMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = true
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -391,7 +391,7 @@ func (p *nodePage) showResolverMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -425,7 +425,7 @@ func (p *nodePage) showHostMapperMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.ShowAdd = true
+	p.menu.OnAdd = func() {}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

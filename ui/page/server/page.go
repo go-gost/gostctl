@@ -35,15 +35,17 @@ type serverPage struct {
 	name component.TextField
 	url  component.TextField
 
-	basicAuth ui_widget.Switcher
-	username  component.TextField
-	password  component.TextField
+	basicAuth          ui_widget.Switcher
+	username           component.TextField
+	password           component.TextField
+	btnPasswordVisible widget.Clickable
+	passwordVisible    bool
 
 	interval component.TextField
 	timeout  component.TextField
 
-	btnPasswordVisible widget.Clickable
-	passwordVisible    bool
+	autoSave ui_widget.Switcher
+	saveFile component.TextField
 
 	id   string
 	perm page.Perm
@@ -69,6 +71,7 @@ func NewPage(r *page.Router) page.Page {
 				MaxLen:     128,
 			},
 		},
+		basicAuth: ui_widget.Switcher{Title: i18n.BasicAuth},
 		username: component.TextField{
 			Editor: widget.Editor{
 				SingleLine: true,
@@ -95,11 +98,17 @@ func NewPage(r *page.Router) page.Page {
 			},
 			Suffix: material.Body1(r.Theme, i18n.Seconds.Value()).Layout,
 		},
+
+		autoSave: ui_widget.Switcher{Title: i18n.AutoSave},
+		saveFile: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
 		delDialog: ui_widget.Dialog{
 			Title: i18n.DeleteServer,
 		},
-
-		basicAuth: ui_widget.Switcher{Title: i18n.BasicAuth},
 	}
 }
 
@@ -147,10 +156,7 @@ func (p *serverPage) Init(opts ...page.PageOption) {
 		p.basicAuth.SetValue(false)
 	}
 
-	p.username.Clear()
 	p.username.SetText(server.Username)
-
-	p.password.Clear()
 	p.password.SetText(server.Password)
 	p.passwordVisible = false
 
@@ -160,6 +166,12 @@ func (p *serverPage) Init(opts ...page.PageOption) {
 	p.timeout.Clear()
 	p.timeout.SetText(fmt.Sprintf("%d", int(server.Timeout.Seconds())))
 
+	p.autoSave.SetValue(false)
+	p.saveFile.Clear()
+	if server.AutoSave != "" {
+		p.autoSave.SetValue(true)
+		p.saveFile.SetText(server.AutoSave)
+	}
 }
 
 func (p *serverPage) Layout(gtx page.C) page.D {
@@ -363,38 +375,62 @@ func (p *serverPage) layout(gtx page.C, th *page.T) page.D {
 				}),
 				layout.Rigid(func(gtx page.C) page.D {
 					if !p.basicAuth.Value() {
-						p.username.SetText("")
 						return page.D{}
 					}
-					return p.username.Layout(gtx, th, i18n.Username.Value())
+
+					return layout.UniformInset(8).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{
+							Axis: layout.Vertical,
+						}.Layout(gtx,
+							layout.Rigid(material.Body1(th, i18n.Username.Value()).Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return p.username.Layout(gtx, th, "")
+							}),
+							layout.Rigid(layout.Spacer{Height: 8}.Layout),
+							layout.Rigid(material.Body1(th, i18n.Password.Value()).Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if p.btnPasswordVisible.Clicked(gtx) {
+									p.passwordVisible = !p.passwordVisible
+								}
+
+								if p.passwordVisible {
+									p.password.Suffix = func(gtx page.C) page.D {
+										return p.btnPasswordVisible.Layout(gtx, func(gtx page.C) page.D {
+											return icons.IconVisibility.Layout(gtx, color.NRGBA(colornames.Grey500))
+										})
+									}
+									p.password.Mask = 0
+								} else {
+									p.password.Suffix = func(gtx page.C) page.D {
+										return p.btnPasswordVisible.Layout(gtx, func(gtx page.C) page.D {
+											return icons.IconVisibilityOff.Layout(gtx, color.NRGBA(colornames.Grey500))
+										})
+									}
+									p.password.Mask = '*'
+								}
+								return p.password.Layout(gtx, th, "")
+							}),
+						)
+					})
 				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					if !p.basicAuth.Value() {
-						p.password.SetText("")
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return p.autoSave.Layout(gtx, th)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if !p.autoSave.Value() {
 						return page.D{}
 					}
 
-					if p.btnPasswordVisible.Clicked(gtx) {
-						p.passwordVisible = !p.passwordVisible
-					}
-
-					if p.passwordVisible {
-						p.password.Suffix = func(gtx page.C) page.D {
-							return p.btnPasswordVisible.Layout(gtx, func(gtx page.C) page.D {
-								return icons.IconVisibility.Layout(gtx, color.NRGBA(colornames.Grey500))
-							})
-						}
-						p.password.Mask = 0
-					} else {
-						p.password.Suffix = func(gtx page.C) page.D {
-							return p.btnPasswordVisible.Layout(gtx, func(gtx page.C) page.D {
-								return icons.IconVisibilityOff.Layout(gtx, color.NRGBA(colornames.Grey500))
-							})
-						}
-						p.password.Mask = '*'
-					}
-
-					return p.password.Layout(gtx, th, i18n.Password.Value())
+					return layout.UniformInset(8).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{
+							Axis: layout.Vertical,
+						}.Layout(gtx,
+							layout.Rigid(material.Body1(th, i18n.FilePath.Value()).Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return p.saveFile.Layout(gtx, th, "")
+							}),
+						)
+					})
 				}),
 			)
 		})
@@ -429,6 +465,9 @@ func (p *serverPage) save() bool {
 	}
 	if timeout, _ := strconv.Atoi(strings.TrimSpace(p.timeout.Text())); timeout > 0 {
 		server.Timeout = time.Duration(timeout) * time.Second
+	}
+	if p.autoSave.Value() {
+		server.AutoSave = strings.TrimSpace(p.saveFile.Text())
 	}
 
 	cfg := config.Get()

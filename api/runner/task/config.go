@@ -2,6 +2,8 @@ package task
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-gost/gostctl/api"
@@ -74,4 +76,26 @@ func (t *getConfigTask) Run(ctx context.Context) error {
 
 	api.SetConfig(cfg)
 	return nil
+}
+
+type saveConfigTask struct {
+	path string
+}
+
+func SaveConfig(path string) runner.Task {
+	return &saveConfigTask{
+		path: path,
+	}
+}
+
+func (t *saveConfigTask) ID() runner.TaskID {
+	return runner.TaskSaveConfig
+}
+
+func (t *saveConfigTask) Run(ctx context.Context) (err error) {
+	defer func() {
+		slog.With("kind", "task", "task", t.ID()).DebugContext(ctx, fmt.Sprintf("save config to %s: %v", t.path, err))
+	}()
+
+	return client.Default().SaveConfig(ctx, t.path)
 }
