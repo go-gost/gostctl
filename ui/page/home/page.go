@@ -62,6 +62,10 @@ func NewPage(r *page.Router) page.Page {
 				list: list.Auther(r),
 				path: page.PageAuther,
 			},
+			{
+				list: list.Admission(r),
+				path: page.PageAdmission,
+			},
 		},
 	}
 }

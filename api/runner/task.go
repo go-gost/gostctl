@@ -25,6 +25,10 @@ const (
 	TaskCreateAuther TaskID = "api.auther.create"
 	TaskUpdateAuther TaskID = "api.auther.update"
 	TaskDeleteAuther TaskID = "api.auther.delete"
+
+	TaskCreateAdmission TaskID = "api.admission.create"
+	TaskUpdateAdmission TaskID = "api.admission.update"
+	TaskDeleteAdmission TaskID = "api.admission.delete"
 )
 
 type Task interface {

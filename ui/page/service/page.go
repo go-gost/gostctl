@@ -565,7 +565,13 @@ func (p *servicePage) showAdmissionMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageAdmission,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
+	}
 	p.menu.Multiple = true
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

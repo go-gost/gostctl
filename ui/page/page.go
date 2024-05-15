@@ -10,17 +10,19 @@ import (
 type PagePath string
 
 const (
-	PageHome          PagePath = "/"
-	PageServer        PagePath = "/server"
-	PageService       PagePath = "/service"
-	PageChain         PagePath = "/chain"
-	PageHop           PagePath = "/hop"
-	PageNode          PagePath = "/node"
-	PageForwarderNode PagePath = "/forwarder/node"
-	PageMetadata      PagePath = "/metadata"
-	PageAuther        PagePath = "/auther"
-	PageAutherAuths   PagePath = "/auther/auths"
-	PageSettings      PagePath = "/settings"
+	PageHome             PagePath = "/"
+	PageServer           PagePath = "/server"
+	PageService          PagePath = "/service"
+	PageChain            PagePath = "/chain"
+	PageHop              PagePath = "/hop"
+	PageNode             PagePath = "/node"
+	PageForwarderNode    PagePath = "/forwarder/node"
+	PageMetadata         PagePath = "/metadata"
+	PageAuther           PagePath = "/auther"
+	PageAutherAuths      PagePath = "/auther/auths"
+	PageAdmission        PagePath = "/admission"
+	PageAdmissionMatcher PagePath = "/admission/matcher"
+	PageSettings         PagePath = "/settings"
 )
 
 type Perm uint8

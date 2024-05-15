@@ -14,11 +14,12 @@ import (
 )
 
 const (
-	uriConfig  = "/config"
-	uriService = uriConfig + "/services"
-	uriChain   = uriConfig + "/chains"
-	uriHop     = uriConfig + "/hops"
-	uriAuther  = uriConfig + "/authers"
+	uriConfig    = "/config"
+	uriService   = uriConfig + "/services"
+	uriChain     = uriConfig + "/chains"
+	uriHop       = uriConfig + "/hops"
+	uriAuther    = uriConfig + "/authers"
+	uriAdmission = uriConfig + "/admissions"
 )
 
 var (

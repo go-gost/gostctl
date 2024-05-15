@@ -9,6 +9,8 @@ import (
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/page/admission"
+	"github.com/go-gost/gostctl/ui/page/admission/matcher"
 	"github.com/go-gost/gostctl/ui/page/auther"
 	"github.com/go-gost/gostctl/ui/page/auther/auth"
 	"github.com/go-gost/gostctl/ui/page/chain"
@@ -58,6 +60,8 @@ func NewUI(w *app.Window) *UI {
 	router.Register(page.PageMetadata, metadata.NewPage(router))
 	router.Register(page.PageAuther, auther.NewPage(router))
 	router.Register(page.PageAutherAuths, auth.NewPage(router))
+	router.Register(page.PageAdmission, admission.NewPage(router))
+	router.Register(page.PageAdmissionMatcher, matcher.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{

@@ -54,8 +54,11 @@ type autherPage struct {
 	httpURL              component.TextField
 	httpTimeout          component.TextField
 
-	pluginType ui_widget.Selector
-	pluginAddr component.TextField
+	pluginType          ui_widget.Selector
+	pluginAddr          component.TextField
+	pluginEnableTLS     ui_widget.Switcher
+	pluginTLSSecure     ui_widget.Switcher
+	pluginTLSServerName component.TextField
 
 	id   string
 	perm page.Perm
@@ -81,7 +84,7 @@ func NewPage(r *page.Router) page.Page {
 			},
 		},
 
-		authSelector: ui_widget.Selector{Title: i18n.Auth},
+		authSelector: ui_widget.Selector{Title: i18n.Auths},
 
 		reload: component.TextField{
 			Editor: widget.Editor{
@@ -151,6 +154,14 @@ func NewPage(r *page.Router) page.Page {
 			Editor: widget.Editor{
 				SingleLine: true,
 				MaxLen:     128,
+			},
+		},
+		pluginEnableTLS: ui_widget.Switcher{Title: i18n.TLS},
+		pluginTLSSecure: ui_widget.Switcher{Title: i18n.VerifyServerCert},
+		pluginTLSServerName: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
 			},
 		},
 
@@ -229,6 +240,9 @@ func (p *autherPage) Init(opts ...page.PageOption) {
 	{
 		p.pluginType.Clear()
 		p.pluginAddr.Clear()
+		p.pluginEnableTLS.SetValue(false)
+		p.pluginTLSSecure.SetValue(false)
+		p.pluginTLSServerName.Clear()
 
 		if auther.Plugin != nil {
 			p.mode.Value = string(page.PluginMode)
@@ -239,6 +253,12 @@ func (p *autherPage) Init(opts ...page.PageOption) {
 				}
 			}
 			p.pluginAddr.SetText(auther.Plugin.Addr)
+
+			if auther.Plugin.TLS != nil {
+				p.pluginEnableTLS.SetValue(true)
+				p.pluginTLSSecure.SetValue(auther.Plugin.TLS.Secure)
+				p.pluginTLSServerName.SetText(auther.Plugin.TLS.ServerName)
+			}
 		}
 	}
 }
@@ -397,6 +417,37 @@ func (p *autherPage) layout(gtx page.C, th *page.T) page.D {
 								p.showPluginTypeMenu(gtx)
 							}
 							return p.pluginType.Layout(gtx, th)
+						}),
+						layout.Rigid(func(gtx page.C) page.D {
+							return p.pluginEnableTLS.Layout(gtx, th)
+						}),
+						layout.Rigid(func(gtx page.C) page.D {
+							if !p.pluginEnableTLS.Value() {
+								return page.D{}
+							}
+
+							return layout.Flex{
+								Axis: layout.Vertical,
+							}.Layout(gtx,
+								layout.Rigid(func(gtx page.C) page.D {
+									return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+										return layout.Flex{
+											Axis: layout.Vertical,
+										}.Layout(gtx,
+											layout.Rigid(func(gtx page.C) page.D {
+												return p.pluginTLSSecure.Layout(gtx, th)
+											}),
+
+											layout.Rigid(func(gtx page.C) page.D {
+												return material.Body1(th, i18n.ServerName.Value()).Layout(gtx)
+											}),
+											layout.Rigid(func(gtx page.C) page.D {
+												return p.pluginTLSServerName.Layout(gtx, th, "")
+											}),
+										)
+									})
+								}),
+							)
 						}),
 					)
 				}),
@@ -610,6 +661,12 @@ func (p *autherPage) generateConfig() *api.AutherConfig {
 		cfg.Plugin = &api.PluginConfig{
 			Type: p.pluginType.Value(),
 			Addr: p.pluginAddr.Text(),
+		}
+		if p.pluginEnableTLS.Value() {
+			cfg.Plugin.TLS = &api.TLSConfig{
+				Secure:     p.pluginTLSSecure.Value(),
+				ServerName: strings.TrimSpace(p.pluginTLSServerName.Text()),
+			}
 		}
 		return cfg
 	}

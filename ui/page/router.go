@@ -130,8 +130,8 @@ func (r *Router) Layout(gtx C) D {
 						return layout.Inset{
 							Top:    16,
 							Bottom: 16,
-							Right:  unit.Dp(gtx.Constraints.Max.X / 5),
-							Left:   unit.Dp(gtx.Constraints.Max.X / 5),
+							Right:  gtx.Metric.PxToDp(gtx.Constraints.Max.X) / 5,
+							Left:   gtx.Metric.PxToDp(gtx.Constraints.Max.X) / 5,
 						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							return r.notification.Layout(gtx, r.Theme)
 						})

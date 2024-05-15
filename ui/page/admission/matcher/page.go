@@ -1,28 +1,25 @@
-package auth
+package matcher
 
 import (
 	"strings"
 
-	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
-	"github.com/go-gost/gostctl/api"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/icons"
 	"github.com/go-gost/gostctl/ui/page"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
 )
 
-type auth struct {
-	username string
-	password string
-	clk      widget.Clickable
-	delete   widget.Clickable
+type matcher struct {
+	rule   string
+	clk    widget.Clickable
+	delete widget.Clickable
 }
 
-type authPage struct {
+type matcherPage struct {
 	router *page.Router
 	list   layout.List
 
@@ -32,7 +29,7 @@ type authPage struct {
 	btnSave   widget.Clickable
 	btnAdd    widget.Clickable
 
-	auths []auth
+	matchers []matcher
 
 	id       string
 	perm     page.Perm
@@ -40,40 +37,34 @@ type authPage struct {
 
 	edit bool
 
-	authDialog authDialog
+	ruleDialog ruleDialog
 	delDialog  ui_widget.Dialog
 }
 
 func NewPage(r *page.Router) page.Page {
-	p := &authPage{
+	p := &matcherPage{
 		router: r,
 
 		list: layout.List{
 			Axis: layout.Vertical,
 		},
-		authDialog: authDialog{
-			kv: kv{
-				k: component.TextField{
+		ruleDialog: ruleDialog{
+			rule: rule{
+				value: component.TextField{
 					Editor: widget.Editor{
-						MaxLen:     128,
-						SingleLine: true,
-					},
-				},
-				v: component.TextField{
-					Editor: widget.Editor{
-						MaxLen:     128,
+						MaxLen:     255,
 						SingleLine: true,
 					},
 				},
 			},
 		},
-		delDialog: ui_widget.Dialog{Title: i18n.DeleteAuth},
+		delDialog: ui_widget.Dialog{Title: i18n.DeleteRules},
 	}
 
 	return p
 }
 
-func (p *authPage) Init(opts ...page.PageOption) {
+func (p *matcherPage) Init(opts ...page.PageOption) {
 	var options page.PageOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -84,20 +75,19 @@ func (p *authPage) Init(opts ...page.PageOption) {
 	p.perm = options.Perm
 	p.edit = p.perm&page.PermWrite > 0
 
-	p.auths = nil
-	auths, _ := options.Value.([]*api.AuthConfig)
-	for i := range auths {
-		if auths[i] == nil || auths[i].Username == "" {
+	p.matchers = nil
+	matchers, _ := options.Value.([]string)
+	for i := range matchers {
+		if matchers[i] == "" {
 			continue
 		}
-		p.auths = append(p.auths, auth{
-			username: auths[i].Username,
-			password: auths[i].Password,
+		p.matchers = append(p.matchers, matcher{
+			rule: matchers[i],
 		})
 	}
 }
 
-func (p *authPage) Layout(gtx page.C) page.D {
+func (p *matcherPage) Layout(gtx page.C) page.D {
 	if p.btnAdd.Clicked(gtx) {
 		p.showDialog(gtx, nil)
 	}
@@ -126,7 +116,7 @@ func (p *authPage) Layout(gtx page.C) page.D {
 	)
 }
 
-func (p *authPage) layout(gtx page.C, th *page.T) page.D {
+func (p *matcherPage) layout(gtx page.C, th *page.T) page.D {
 	if p.btnBack.Clicked(gtx) {
 		p.router.Back()
 	}
@@ -170,7 +160,7 @@ func (p *authPage) layout(gtx page.C, th *page.T) page.D {
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Flexed(1, func(gtx page.C) page.D {
-						title := material.H6(th, i18n.Auths.Value())
+						title := material.H6(th, i18n.Rules.Value())
 						return title.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx page.C) page.D {
@@ -208,24 +198,24 @@ func (p *authPage) layout(gtx page.C, th *page.T) page.D {
 		*/
 
 		layout.Flexed(1, func(gtx page.C) page.D {
-			for i := range p.auths {
-				if p.auths[i].delete.Clicked(gtx) {
-					p.auths = append(p.auths[:i], p.auths[i+1:]...)
+			for i := range p.matchers {
+				if p.matchers[i].delete.Clicked(gtx) {
+					p.matchers = append(p.matchers[:i], p.matchers[i+1:]...)
 					break
 				}
 
-				if p.auths[i].clk.Clicked(gtx) {
+				if p.matchers[i].clk.Clicked(gtx) {
 					if !p.edit {
 						break
 					}
 
-					p.showDialog(gtx, &p.auths[i])
+					p.showDialog(gtx, &p.matchers[i])
 					break
 				}
 			}
 
-			return p.list.Layout(gtx, len(p.auths), func(gtx page.C, index int) page.D {
-				auth := &p.auths[index]
+			return p.list.Layout(gtx, len(p.matchers), func(gtx page.C, index int) page.D {
+				matcher := &p.matchers[index]
 
 				return layout.Flex{
 					Axis: layout.Vertical,
@@ -235,18 +225,15 @@ func (p *authPage) layout(gtx page.C, th *page.T) page.D {
 							Alignment: layout.Middle,
 						}.Layout(gtx,
 							layout.Flexed(1, func(gtx page.C) page.D {
-								return material.Clickable(gtx, &auth.clk, func(gtx page.C) page.D {
+								return material.Clickable(gtx, &matcher.clk, func(gtx page.C) page.D {
 									return layout.UniformInset(16).Layout(gtx, func(gtx page.C) page.D {
 										return layout.Flex{
 											Axis: layout.Vertical,
 										}.Layout(gtx,
 											layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-												label := material.Body1(th, auth.username)
-												label.Font.Weight = font.SemiBold
+												label := material.Body1(th, matcher.rule)
 												return label.Layout(gtx)
 											}),
-											layout.Rigid(layout.Spacer{Height: 8}.Layout),
-											layout.Rigid(material.Body2(th, auth.password).Layout),
 										)
 									})
 								})
@@ -262,7 +249,7 @@ func (p *authPage) layout(gtx page.C, th *page.T) page.D {
 									Left:   8,
 									Right:  16,
 								}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-									btn := material.IconButton(th, &auth.delete, icons.IconDelete, "Remove")
+									btn := material.IconButton(th, &matcher.delete, icons.IconDelete, "Remove")
 									btn.Color = th.Fg
 									btn.Background = th.Bg
 									return btn.Layout(gtx)
@@ -284,51 +271,46 @@ func (p *authPage) layout(gtx page.C, th *page.T) page.D {
 	)
 }
 
-func (p *authPage) showDialog(gtx page.C, au *auth) {
-	if au != nil {
-		p.authDialog.kv.Set(au.username, au.password)
+func (p *matcherPage) showDialog(gtx page.C, m *matcher) {
+	if m != nil {
+		p.ruleDialog.rule.Set(m.rule)
 	} else {
-		p.authDialog.kv.Set("", "")
+		p.ruleDialog.rule.Set("")
 	}
 
-	p.authDialog.OnClick = func(ok bool) {
+	p.ruleDialog.OnClick = func(ok bool) {
 		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
 
-		k, v := p.authDialog.kv.Get()
-		if au != nil {
-			au.username = k
-			au.password = v
+		v := p.ruleDialog.rule.Get()
+		if m != nil {
+			m.rule = v
 			return
 		}
 
-		p.auths = append(p.auths, auth{
-			username: k,
-			password: v,
+		p.matchers = append(p.matchers, matcher{
+			rule: v,
 		})
 	}
 
-	p.router.ShowModal(gtx, p.authDialog.Layout)
+	p.router.ShowModal(gtx, p.ruleDialog.Layout)
 }
 
-func (p *authPage) generateConfig() []*api.AuthConfig {
-	auths := []*api.AuthConfig{}
-	for i := range p.auths {
-		username := strings.TrimSpace(p.auths[i].username)
-		if username == "" {
+func (p *matcherPage) generateConfig() []string {
+	rules := []string{}
+	for i := range p.matchers {
+		rule := strings.TrimSpace(p.matchers[i].rule)
+		if rule == "" {
 			continue
 		}
-		auths = append(auths, &api.AuthConfig{
-			Username: username,
-			Password: strings.TrimSpace(p.auths[i].password),
-		})
+		rules = append(rules, rule)
 	}
-	return auths
+	return rules
 }
 
-func (p *authPage) save() bool {
+func (p *matcherPage) save() bool {
 	if p.callback != nil {
 		p.callback(page.ActionUpdate, p.id, p.generateConfig())
 	}
@@ -336,7 +318,7 @@ func (p *authPage) save() bool {
 	return true
 }
 
-func (p *authPage) delete() {
+func (p *matcherPage) delete() {
 	if p.callback != nil {
 		p.callback(page.ActionDelete, p.id, nil)
 	}

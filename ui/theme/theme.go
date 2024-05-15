@@ -63,7 +63,7 @@ var (
 			NavButtonBg:         color.NRGBA(colornames.Grey800),
 			NavButtonContrastBg: color.NRGBA(colornames.Grey600),
 			ItemBg:              color.NRGBA(colornames.Grey600),
-			NotificationBg:      color.NRGBA(colornames.Grey800),
+			NotificationBg:      color.NRGBA(colornames.Grey700),
 		},
 	}
 )
