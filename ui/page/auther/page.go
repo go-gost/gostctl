@@ -206,6 +206,10 @@ func (p *autherPage) Init(opts ...page.PageOption) {
 	}
 
 	p.mode.Value = string(page.BasicMode)
+	if auther.File != nil || auther.HTTP != nil || auther.Redis != nil {
+		p.mode.Value = string(page.AdvancedMode)
+	}
+
 	p.name.SetText(auther.Name)
 	p.auths = auther.Auths
 	p.authSelector.Clear()

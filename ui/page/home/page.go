@@ -66,6 +66,10 @@ func NewPage(r *page.Router) page.Page {
 				list: list.Admission(r),
 				path: page.PageAdmission,
 			},
+			{
+				list: list.Bypass(r),
+				path: page.PageBypass,
+			},
 		},
 	}
 }

@@ -81,6 +81,7 @@ var en_US = map[Key]string{
 	DeleteAuth:      "Delete auth?",
 	DeleteAdmission: "Delete admission?",
 	DeleteRules:     "Delete rules?",
+	DeleteBypass:    "Delete bypass?",
 
 	SelectorStrategy: "Strategy",
 	SelectorRound:    "Round-Robin",

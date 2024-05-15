@@ -1,4 +1,4 @@
-package admission
+package bypass
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type admissionPage struct {
+type bypassPage struct {
 	router *page.Router
 
 	menu ui_widget.Menu
@@ -71,7 +71,7 @@ type admissionPage struct {
 }
 
 func NewPage(r *page.Router) page.Page {
-	p := &admissionPage{
+	p := &bypassPage{
 		router: r,
 
 		list: layout.List{
@@ -167,13 +167,13 @@ func NewPage(r *page.Router) page.Page {
 			},
 		},
 
-		delDialog: ui_widget.Dialog{Title: i18n.DeleteAdmission},
+		delDialog: ui_widget.Dialog{Title: i18n.DeleteBypass},
 	}
 
 	return p
 }
 
-func (p *admissionPage) Init(opts ...page.PageOption) {
+func (p *bypassPage) Init(opts ...page.PageOption) {
 	var options page.PageOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -192,55 +192,55 @@ func (p *admissionPage) Init(opts ...page.PageOption) {
 
 	p.perm = options.Perm
 
-	admission, _ := options.Value.(*api.AdmissionConfig)
+	bypass, _ := options.Value.(*api.BypassConfig)
 
-	if admission == nil {
+	if bypass == nil {
 		cfg := api.GetConfig()
-		for _, v := range cfg.Admissions {
+		for _, v := range cfg.Bypasses {
 			if v.Name == p.id {
-				admission = v
+				bypass = v
 				break
 			}
 		}
-		if admission == nil {
-			admission = &api.AdmissionConfig{}
+		if bypass == nil {
+			bypass = &api.BypassConfig{}
 		}
 	}
 
 	p.mode.Value = string(page.BasicMode)
-	if admission.File != nil || admission.HTTP != nil || admission.Redis != nil {
+	if bypass.File != nil || bypass.HTTP != nil || bypass.Redis != nil {
 		p.mode.Value = string(page.AdvancedMode)
 	}
 
-	p.name.SetText(admission.Name)
-	p.whitelist.SetValue(admission.Whitelist)
-	p.matchers = admission.Matchers
+	p.name.SetText(bypass.Name)
+	p.whitelist.SetValue(bypass.Whitelist)
+	p.matchers = bypass.Matchers
 	p.matcherSelector.Clear()
 	p.matcherSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.matchers))})
 
 	{
-		p.reload.SetText(strconv.Itoa(int(admission.Reload.Seconds())))
+		p.reload.SetText(strconv.Itoa(int(bypass.Reload.Seconds())))
 
 		p.enableFileDataSource.SetValue(false)
-		if admission.File != nil {
+		if bypass.File != nil {
 			p.enableFileDataSource.SetValue(true)
-			p.filePath.SetText(admission.File.Path)
+			p.filePath.SetText(bypass.File.Path)
 		}
 
 		p.enableRedisDataSource.SetValue(false)
-		if admission.Redis != nil {
+		if bypass.Redis != nil {
 			p.enableRedisDataSource.SetValue(true)
-			p.redisAddr.SetText(admission.Redis.Addr)
-			p.redisDB.SetText(strconv.Itoa(admission.Redis.DB))
-			p.redisPassword.SetText(admission.Redis.Password)
-			p.redisKey.SetText(admission.Redis.Key)
+			p.redisAddr.SetText(bypass.Redis.Addr)
+			p.redisDB.SetText(strconv.Itoa(bypass.Redis.DB))
+			p.redisPassword.SetText(bypass.Redis.Password)
+			p.redisKey.SetText(bypass.Redis.Key)
 		}
 
 		p.enableHTTPDataSource.SetValue(false)
-		if admission.HTTP != nil {
+		if bypass.HTTP != nil {
 			p.enableHTTPDataSource.SetValue(true)
-			p.httpURL.SetText(admission.HTTP.URL)
-			p.httpTimeout.SetText(strconv.Itoa(int(admission.HTTP.Timeout.Seconds())))
+			p.httpURL.SetText(bypass.HTTP.URL)
+			p.httpTimeout.SetText(strconv.Itoa(int(bypass.HTTP.Timeout.Seconds())))
 		}
 	}
 
@@ -251,26 +251,26 @@ func (p *admissionPage) Init(opts ...page.PageOption) {
 		p.pluginTLSSecure.SetValue(false)
 		p.pluginTLSServerName.Clear()
 
-		if admission.Plugin != nil {
+		if bypass.Plugin != nil {
 			p.mode.Value = string(page.PluginMode)
 			for i := range page.PluginTypeOptions {
-				if page.PluginTypeOptions[i].Value == admission.Plugin.Type {
+				if page.PluginTypeOptions[i].Value == bypass.Plugin.Type {
 					p.pluginType.Select(ui_widget.SelectorItem{Key: page.PluginTypeOptions[i].Key, Value: page.PluginTypeOptions[i].Value})
 					break
 				}
 			}
-			p.pluginAddr.SetText(admission.Plugin.Addr)
+			p.pluginAddr.SetText(bypass.Plugin.Addr)
 
-			if admission.Plugin.TLS != nil {
+			if bypass.Plugin.TLS != nil {
 				p.pluginEnableTLS.SetValue(true)
-				p.pluginTLSSecure.SetValue(admission.Plugin.TLS.Secure)
-				p.pluginTLSServerName.SetText(admission.Plugin.TLS.ServerName)
+				p.pluginTLSSecure.SetValue(bypass.Plugin.TLS.Secure)
+				p.pluginTLSServerName.SetText(bypass.Plugin.TLS.ServerName)
 			}
 		}
 	}
 }
 
-func (p *admissionPage) Layout(gtx page.C) page.D {
+func (p *bypassPage) Layout(gtx page.C) page.D {
 	if p.btnBack.Clicked(gtx) {
 		p.router.Back()
 	}
@@ -316,7 +316,7 @@ func (p *admissionPage) Layout(gtx page.C) page.D {
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Flexed(1, func(gtx page.C) page.D {
-						title := material.H6(th, i18n.Admission.Value())
+						title := material.H6(th, i18n.Bypass.Value())
 						return title.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx page.C) page.D {
@@ -360,7 +360,7 @@ func (p *admissionPage) Layout(gtx page.C) page.D {
 	)
 }
 
-func (p *admissionPage) layout(gtx page.C, th *page.T) page.D {
+func (p *bypassPage) layout(gtx page.C, th *page.T) page.D {
 	src := gtx.Source
 
 	if !p.edit {
@@ -498,7 +498,7 @@ func (p *admissionPage) layout(gtx page.C, th *page.T) page.D {
 	})
 }
 
-func (p *admissionPage) layoutDataSource(gtx page.C, th *page.T) page.D {
+func (p *bypassPage) layoutDataSource(gtx page.C, th *page.T) page.D {
 	if p.mode.Value != string(page.AdvancedMode) {
 		return page.D{}
 	}
@@ -602,7 +602,7 @@ func (p *admissionPage) layoutDataSource(gtx page.C, th *page.T) page.D {
 	)
 }
 
-func (p *admissionPage) showPluginTypeMenu(gtx page.C) {
+func (p *bypassPage) showPluginTypeMenu(gtx page.C) {
 	for i := range page.PluginTypeOptions {
 		page.PluginTypeOptions[i].Selected = p.pluginType.AnyValue(page.PluginTypeOptions[i].Value)
 	}
@@ -630,7 +630,7 @@ func (p *admissionPage) showPluginTypeMenu(gtx page.C) {
 	})
 }
 
-func (p *admissionPage) callback(action page.Action, id string, value any) {
+func (p *bypassPage) callback(action page.Action, id string, value any) {
 	if id == "" {
 		return
 	}
@@ -647,18 +647,18 @@ func (p *admissionPage) callback(action page.Action, id string, value any) {
 	p.matcherSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.matchers))})
 }
 
-func (p *admissionPage) save() bool {
+func (p *bypassPage) save() bool {
 	cfg := p.generateConfig()
 
 	var err error
 	if p.id == "" {
 		err = runner.Exec(context.Background(),
-			task.CreateAdmission(cfg),
+			task.CreateBypass(cfg),
 			runner.WithCancel(true),
 		)
 	} else {
 		err = runner.Exec(context.Background(),
-			task.UpdateAdmission(cfg),
+			task.UpdateBypass(cfg),
 			runner.WithCancel(true),
 		)
 	}
@@ -667,8 +667,8 @@ func (p *admissionPage) save() bool {
 	return err == nil
 }
 
-func (p *admissionPage) generateConfig() *api.AdmissionConfig {
-	cfg := &api.AdmissionConfig{
+func (p *bypassPage) generateConfig() *api.BypassConfig {
+	cfg := &api.BypassConfig{
 		Name:      strings.TrimSpace(p.name.Text()),
 		Matchers:  p.matchers,
 		Whitelist: p.whitelist.Value(),
@@ -717,9 +717,9 @@ func (p *admissionPage) generateConfig() *api.AdmissionConfig {
 	return cfg
 }
 
-func (p *admissionPage) delete() {
+func (p *bypassPage) delete() {
 	runner.Exec(context.Background(),
-		task.DeleteAdmission(p.id),
+		task.DeleteBypass(p.id),
 		runner.WithCancel(true),
 	)
 	util.RestartGetConfigTask()

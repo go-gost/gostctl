@@ -20,6 +20,7 @@ const (
 	uriHop       = uriConfig + "/hops"
 	uriAuther    = uriConfig + "/authers"
 	uriAdmission = uriConfig + "/admissions"
+	uriBypass    = uriConfig + "/bypasses"
 )
 
 var (

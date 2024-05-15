@@ -244,6 +244,10 @@ func (p *hopPage) Init(opts ...page.PageOption) {
 	}
 
 	p.mode.Value = string(page.BasicMode)
+	if hop.File != nil || hop.HTTP != nil || hop.Redis != nil {
+		p.mode.Value = string(page.AdvancedMode)
+	}
+
 	p.name.SetText(hop.Name)
 
 	{
@@ -908,7 +912,11 @@ func (p *hopPage) showBypassMenu(gtx page.C) {
 		}
 	}
 	p.menu.OnAdd = func() {
-
+		p.router.Goto(page.Route{
+			Path: page.PageBypass,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
 	}
 	p.menu.Multiple = true
 

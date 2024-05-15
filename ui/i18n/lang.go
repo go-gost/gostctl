@@ -144,6 +144,7 @@ const (
 	DeleteAuth      Key = "deleteAuth"
 	DeleteAdmission Key = "deleteAdmission"
 	DeleteRules     Key = "deleteRules"
+	DeleteBypass    Key = "deleteBypass"
 
 	SelectorStrategy Key = "selectorStrategy"
 	SelectorRound    Key = "selectorRound"

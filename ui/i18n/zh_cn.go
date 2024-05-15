@@ -81,6 +81,7 @@ var zh_CN = map[Key]string{
 	DeleteAuth:      "删除认证？",
 	DeleteAdmission: "删除准入控制器？",
 	DeleteRules:     "删除规则？",
+	DeleteBypass:    "删除分流器？",
 
 	SelectorStrategy: "策略",
 	SelectorRound:    "轮询",

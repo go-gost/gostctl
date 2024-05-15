@@ -29,6 +29,10 @@ const (
 	TaskCreateAdmission TaskID = "api.admission.create"
 	TaskUpdateAdmission TaskID = "api.admission.update"
 	TaskDeleteAdmission TaskID = "api.admission.delete"
+
+	TaskCreateBypass TaskID = "api.bypass.create"
+	TaskUpdateBypass TaskID = "api.bypass.update"
+	TaskDeleteBypass TaskID = "api.bypass.delete"
 )
 
 type Task interface {
