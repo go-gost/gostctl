@@ -34,6 +34,10 @@ const (
 	TaskUpdateBypass TaskID = "api.bypass.update"
 	TaskDeleteBypass TaskID = "api.bypass.delete"
 
+	TaskCreateResolver TaskID = "api.resolver.create"
+	TaskUpdateResolver TaskID = "api.resolver.update"
+	TaskDeleteResolver TaskID = "api.resolver.delete"
+
 	TaskCreateHosts TaskID = "api.hosts.create"
 	TaskUpdateHosts TaskID = "api.hosts.update"
 	TaskDeleteHosts TaskID = "api.hosts.delete"

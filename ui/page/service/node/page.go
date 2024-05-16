@@ -71,6 +71,12 @@ func NewPage(r *page.Router) page.Page {
 				MaxLen:     128,
 			},
 		},
+		addr: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     128,
+			},
+		},
 
 		bypass:         ui_widget.Selector{Title: i18n.Bypass},
 		enableFilter:   ui_widget.Switcher{Title: i18n.Filter},

@@ -1,6 +1,7 @@
-package node
+package nameserver
 
 import (
+	"fmt"
 	"strings"
 
 	"gioui.org/layout"
@@ -16,7 +17,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type nodePage struct {
+type nameserverPage struct {
 	router *page.Router
 
 	menu ui_widget.Menu
@@ -28,15 +29,17 @@ type nodePage struct {
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
 
-	name component.TextField
-	addr component.TextField
+	// name component.TextField
+	addr    component.TextField
+	ttl     component.TextField
+	timeout component.TextField
+	async   ui_widget.Switcher
 
-	bypass     ui_widget.Selector
-	resolver   ui_widget.Selector
-	hostMapper ui_widget.Selector
-
-	connector *connector
-	dialer    *dialer
+	chain    ui_widget.Selector
+	prefer   ui_widget.Selector
+	only     ui_widget.Selector
+	clientIP component.TextField
+	hostname component.TextField
 
 	id       string
 	perm     page.Perm
@@ -49,97 +52,114 @@ type nodePage struct {
 }
 
 func NewPage(r *page.Router) page.Page {
-	p := &nodePage{
+	p := &nameserverPage{
 		router: r,
 
 		list: layout.List{
 			// NOTE: the list must be vertical
 			Axis: layout.Vertical,
 		},
-		name: component.TextField{
-			Editor: widget.Editor{
-				SingleLine: true,
-				MaxLen:     128,
-			},
-		},
+
 		addr: component.TextField{
 			Editor: widget.Editor{
 				SingleLine: true,
-				MaxLen:     128,
+				MaxLen:     255,
+			},
+		},
+		ttl: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     16,
+				Filter:     "1234567890",
+			},
+			Suffix: material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout,
+		},
+		timeout: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     16,
+				Filter:     "1234567890",
+			},
+			Suffix: material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout,
+		},
+		async:  ui_widget.Switcher{Title: i18n.Async},
+		chain:  ui_widget.Selector{Title: i18n.Chain},
+		prefer: ui_widget.Selector{Title: i18n.Prefer},
+		only:   ui_widget.Selector{Title: i18n.Only},
+		clientIP: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     64,
+			},
+		},
+		hostname: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     64,
 			},
 		},
 
-		bypass:     ui_widget.Selector{Title: i18n.Bypass},
-		resolver:   ui_widget.Selector{Title: i18n.Resolver},
-		hostMapper: ui_widget.Selector{Title: i18n.Hosts},
-
-		delDialog: ui_widget.Dialog{Title: i18n.DeleteNode},
+		delDialog: ui_widget.Dialog{Title: i18n.DeleteNameserver},
 	}
-	p.connector = newConnector(p)
-	p.dialer = newDialer(p)
 
 	return p
 }
 
-func (p *nodePage) Init(opts ...page.PageOption) {
+func (p *nameserverPage) Init(opts ...page.PageOption) {
 	var options page.PageOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
 
 	p.id = options.ID
-	node, _ := options.Value.(*api.NodeConfig)
-	if node == nil {
-		node = &api.NodeConfig{}
+	nameserver, _ := options.Value.(*api.NameserverConfig)
+	if nameserver == nil {
+		nameserver = &api.NameserverConfig{}
 	}
 	p.callback = options.Callback
 
 	if p.id != "" {
 		p.edit = false
 		p.create = false
-		p.name.ReadOnly = true
 	} else {
 		p.edit = true
 		p.create = true
-		p.name.ReadOnly = false
 	}
 
 	p.perm = options.Perm
-
 	p.mode.Value = string(page.BasicMode)
 
-	p.name.SetText(node.Name)
-	p.addr.SetText(node.Addr)
+	p.addr.SetText(nameserver.Addr)
 
-	{
-		p.bypass.Clear()
-		var items []ui_widget.SelectorItem
-		if node.Bypass != "" {
-			items = append(items, ui_widget.SelectorItem{Value: node.Bypass})
+	p.ttl.Clear()
+	p.ttl.SetText(fmt.Sprintf("%d", int(nameserver.TTL.Seconds())))
+
+	p.timeout.Clear()
+	p.timeout.SetText(fmt.Sprintf("%d", int(nameserver.Timeout.Seconds())))
+
+	p.async.SetValue(nameserver.Async)
+
+	p.chain.Clear()
+	p.chain.Select(ui_widget.SelectorItem{Value: nameserver.Chain})
+
+	p.prefer.Clear()
+	for _, v := range page.IPTypeOptions {
+		if v.Value == nameserver.Prefer {
+			p.prefer.Select(ui_widget.SelectorItem{Name: v.Name, Value: v.Value})
 		}
-		for _, v := range node.Bypasses {
-			items = append(items, ui_widget.SelectorItem{
-				Value: v,
-			})
+	}
+	p.only.Clear()
+	for _, v := range page.IPTypeOptions {
+		if v.Value == nameserver.Prefer {
+			p.only.Select(ui_widget.SelectorItem{Name: v.Name, Value: v.Value})
 		}
-		p.bypass.Select(items...)
 	}
+	p.clientIP.SetText(nameserver.ClientIP)
+	p.hostname.SetText(nameserver.Hostname)
 
-	p.resolver.Clear()
-	if node.Resolver != "" {
-		p.resolver.Select(ui_widget.SelectorItem{Value: node.Resolver})
-	}
-
-	p.hostMapper.Clear()
-	if node.Hosts != "" {
-		p.hostMapper.Select(ui_widget.SelectorItem{Value: node.Hosts})
-	}
-
-	p.connector.init(node.Connector)
-	p.dialer.init(node.Dialer)
 }
 
-func (p *nodePage) Layout(gtx page.C) page.D {
+func (p *nameserverPage) Layout(gtx page.C) page.D {
 	if p.btnBack.Clicked(gtx) {
 		p.router.Back()
 	}
@@ -190,7 +210,7 @@ func (p *nodePage) Layout(gtx page.C) page.D {
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Flexed(1, func(gtx page.C) page.D {
-						title := material.H6(th, i18n.Node.Value())
+						title := material.H6(th, i18n.Nameserver.Value())
 						return title.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx page.C) page.D {
@@ -225,7 +245,12 @@ func (p *nodePage) Layout(gtx page.C) page.D {
 		}),
 		layout.Flexed(1, func(gtx page.C) page.D {
 			return p.list.Layout(gtx, 1, func(gtx page.C, index int) page.D {
-				return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+				return layout.Inset{
+					Top:    8,
+					Bottom: 8,
+					Left:   8,
+					Right:  8,
+				}.Layout(gtx, func(gtx page.C) page.D {
 					return p.layout(gtx, th)
 				})
 			})
@@ -233,7 +258,7 @@ func (p *nodePage) Layout(gtx page.C) page.D {
 	)
 }
 
-func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
+func (p *nameserverPage) layout(gtx page.C, th *page.T) page.D {
 	src := gtx.Source
 
 	if !p.edit {
@@ -252,31 +277,50 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 				Axis: layout.Vertical,
 			}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					gtx.Source = src
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
 						layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Source = src
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
 						layout.Rigid(layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Source = src
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
 					)
 				}),
 
-				layout.Rigid(material.Body1(th, i18n.Name.Value()).Layout),
-				layout.Rigid(func(gtx page.C) page.D {
-					return p.name.Layout(gtx, th, "")
-				}),
-				layout.Rigid(layout.Spacer{Height: 8}.Layout),
 				layout.Rigid(material.Body1(th, i18n.Address.Value()).Layout),
 				layout.Rigid(func(gtx page.C) page.D {
 					return p.addr.Layout(gtx, th, "")
 				}),
-				layout.Rigid(layout.Spacer{Height: 8}.Layout),
+				layout.Rigid(layout.Spacer{Height: 4}.Layout),
+
+				layout.Rigid(material.Body1(th, "TTL").Layout),
+				layout.Rigid(func(gtx page.C) page.D {
+					return p.ttl.Layout(gtx, th, "")
+				}),
+				layout.Rigid(layout.Spacer{Height: 4}.Layout),
+
+				layout.Rigid(material.Body1(th, i18n.Timeout.Value()).Layout),
+				layout.Rigid(func(gtx page.C) page.D {
+					return p.timeout.Layout(gtx, th, "")
+				}),
+
+				layout.Rigid(layout.Spacer{Height: 4}.Layout),
+				layout.Rigid(func(gtx page.C) page.D {
+					return p.async.Layout(gtx, th)
+				}),
+
+				layout.Rigid(func(gtx page.C) page.D {
+					if p.prefer.Clicked(gtx) {
+						p.showPreferMenu(gtx)
+					}
+					return p.prefer.Layout(gtx, th)
+				}),
 
 				// advanced mode
 				layout.Rigid(func(gtx page.C) page.D {
@@ -287,68 +331,50 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 					return layout.Flex{
 						Axis: layout.Vertical,
 					}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							if p.bypass.Clicked(gtx) {
-								p.showBypassMenu(gtx)
+						layout.Rigid(func(gtx page.C) page.D {
+							if p.only.Clicked(gtx) {
+								p.showOnlyMenu(gtx)
 							}
-							return p.bypass.Layout(gtx, th)
+							return p.only.Layout(gtx, th)
 						}),
 
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							if p.resolver.Clicked(gtx) {
-								p.showResolverMenu(gtx)
+						layout.Rigid(func(gtx page.C) page.D {
+							if p.chain.Clicked(gtx) {
+								p.showChainMenu(gtx)
 							}
-							return p.resolver.Layout(gtx, th)
-						}),
-
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							if p.hostMapper.Clicked(gtx) {
-								p.showHostMapperMenu(gtx)
-							}
-							return p.hostMapper.Layout(gtx, th)
+							return p.chain.Layout(gtx, th)
 						}),
 
 						layout.Rigid(layout.Spacer{Height: 8}.Layout),
-					)
-				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					return layout.Inset{
-						Top:    16,
-						Bottom: 16,
-					}.Layout(gtx, material.H6(th, i18n.Connector.Value()).Layout)
-				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					gtx.Source = src
-					return p.connector.Layout(gtx, th)
-				}),
+						layout.Rigid(material.Body1(th, i18n.ClientIP.Value()).Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							return p.clientIP.Layout(gtx, th, "")
+						}),
 
-				layout.Rigid(func(gtx page.C) page.D {
-					return layout.Inset{
-						Top:    16,
-						Bottom: 16,
-					}.Layout(gtx, material.H6(th, i18n.Dialer.Value()).Layout)
-				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					gtx.Source = src
-					return p.dialer.Layout(gtx, th)
+						layout.Rigid(layout.Spacer{Height: 4}.Layout),
+						layout.Rigid(material.Body1(th, i18n.Hostname.Value()).Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							return p.hostname.Layout(gtx, th, "")
+						}),
+					)
 				}),
 			)
 		})
 	})
 }
 
-func (p *nodePage) showBypassMenu(gtx page.C) {
+func (p *nameserverPage) showChainMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
-	for _, v := range api.GetConfig().Bypasses {
+	for _, v := range api.GetConfig().Chains {
 		options = append(options, ui_widget.MenuOption{
 			Value: v.Name,
 		})
 	}
 	for i := range options {
-		options[i].Selected = p.bypass.AnyValue(options[i].Value)
+		options[i].Selected = p.chain.AnyValue(options[i].Value)
 	}
 
-	p.menu.Title = i18n.Bypass
+	p.menu.Title = i18n.Chain
 	p.menu.Options = options
 	p.menu.OnClick = func(ok bool) {
 		p.router.HideModal(gtx)
@@ -356,48 +382,20 @@ func (p *nodePage) showBypassMenu(gtx page.C) {
 			return
 		}
 
-		p.bypass.Clear()
+		p.chain.Clear()
 		for i := range p.menu.Options {
 			if p.menu.Options[i].Selected {
-				p.bypass.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
+				p.chain.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
-	p.menu.Multiple = true
-
-	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
-		return p.menu.Layout(gtx, th)
-	})
-}
-
-func (p *nodePage) showResolverMenu(gtx page.C) {
-	options := []ui_widget.MenuOption{}
-	for _, v := range api.GetConfig().Resolvers {
-		options = append(options, ui_widget.MenuOption{
-			Value: v.Name,
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageChain,
+			Perm: page.PermReadWrite,
 		})
-	}
-	for i := range options {
-		options[i].Selected = p.resolver.AnyValue(options[i].Value)
-	}
-
-	p.menu.Title = i18n.Resolver
-	p.menu.Options = options
-	p.menu.OnClick = func(ok bool) {
 		p.router.HideModal(gtx)
-		if !ok {
-			return
-		}
-
-		p.resolver.Clear()
-		for i := range p.menu.Options {
-			if p.menu.Options[i].Selected {
-				p.resolver.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
-			}
-		}
 	}
-	p.menu.OnAdd = func() {}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -405,33 +403,27 @@ func (p *nodePage) showResolverMenu(gtx page.C) {
 	})
 }
 
-func (p *nodePage) showHostMapperMenu(gtx page.C) {
-	options := []ui_widget.MenuOption{}
-	for _, v := range api.GetConfig().Hosts {
-		options = append(options, ui_widget.MenuOption{
-			Value: v.Name,
-		})
-	}
-	for i := range options {
-		options[i].Selected = p.hostMapper.AnyValue(options[i].Value)
+func (p *nameserverPage) showPreferMenu(gtx page.C) {
+	for i := range page.IPTypeOptions {
+		page.IPTypeOptions[i].Selected = p.prefer.AnyValue(page.IPTypeOptions[i].Value)
 	}
 
-	p.menu.Title = i18n.Hosts
-	p.menu.Options = options
+	p.menu.Title = i18n.Prefer
+	p.menu.Options = page.IPTypeOptions
 	p.menu.OnClick = func(ok bool) {
 		p.router.HideModal(gtx)
 		if !ok {
 			return
 		}
 
-		p.hostMapper.Clear()
+		p.prefer.Clear()
 		for i := range p.menu.Options {
 			if p.menu.Options[i].Selected {
-				p.hostMapper.Select(ui_widget.SelectorItem{Value: p.menu.Options[i].Value})
+				p.prefer.Select(ui_widget.SelectorItem{Name: p.menu.Options[i].Name, Key: p.menu.Options[i].Key, Value: p.menu.Options[i].Value})
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
+	p.menu.OnAdd = nil
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -439,69 +431,60 @@ func (p *nodePage) showHostMapperMenu(gtx page.C) {
 	})
 }
 
-func (p *nodePage) generateConfig() *api.NodeConfig {
-	node := &api.NodeConfig{
-		Name:     strings.TrimSpace(p.name.Text()),
-		Addr:     strings.TrimSpace(p.addr.Text()),
-		Bypasses: p.bypass.Values(),
-		Resolver: p.resolver.Value(),
-		Hosts:    p.hostMapper.Value(),
+func (p *nameserverPage) showOnlyMenu(gtx page.C) {
+	for i := range page.IPTypeOptions {
+		page.IPTypeOptions[i].Selected = p.only.AnyValue(page.IPTypeOptions[i].Value)
 	}
 
-	connector := &api.ConnectorConfig{
-		Type:     p.connector.typ.Value(),
-		Metadata: p.connector.metadata,
-	}
-	if p.connector.enableAuth.Value() {
-		connector.Auth = &api.AuthConfig{
-			Username: strings.TrimSpace(p.connector.username.Text()),
-			Password: strings.TrimSpace(p.connector.password.Text()),
+	p.menu.Title = i18n.Only
+	p.menu.Options = page.IPTypeOptions
+	p.menu.OnClick = func(ok bool) {
+		p.router.HideModal(gtx)
+		if !ok {
+			return
 		}
-	}
-	node.Connector = connector
 
-	dialer := &api.DialerConfig{
-		Type:     p.dialer.typ.Value(),
-		Metadata: p.dialer.metadata,
-	}
-	if p.dialer.enableAuth.Value() {
-		dialer.Auth = &api.AuthConfig{
-			Username: strings.TrimSpace(p.dialer.username.Text()),
-			Password: strings.TrimSpace(p.dialer.password.Text()),
+		p.only.Clear()
+		for i := range p.menu.Options {
+			if p.menu.Options[i].Selected {
+				p.only.Select(ui_widget.SelectorItem{Name: p.menu.Options[i].Name, Key: p.menu.Options[i].Key, Value: p.menu.Options[i].Value})
+			}
 		}
 	}
-	if p.dialer.enableTLS.Value() {
-		dialer.TLS = &api.TLSConfig{
-			Secure:     p.dialer.tlsSecure.Value(),
-			ServerName: strings.TrimSpace(p.dialer.tlsServerName.Text()),
-			CertFile:   strings.TrimSpace(p.dialer.tlsCertFile.Text()),
-			KeyFile:    strings.TrimSpace(p.dialer.tlsKeyFile.Text()),
-			CAFile:     strings.TrimSpace(p.dialer.tlsCAFile.Text()),
-		}
-	}
-	node.Dialer = dialer
+	p.menu.OnAdd = nil
+	p.menu.Multiple = false
 
-	return node
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+		return p.menu.Layout(gtx, th)
+	})
 }
 
-func (p *nodePage) save() bool {
-	node := p.generateConfig()
+func (p *nameserverPage) generateConfig() *api.NameserverConfig {
+	nameserver := &api.NameserverConfig{
+		Addr: strings.TrimSpace(p.addr.Text()),
+	}
+
+	return nameserver
+}
+
+func (p *nameserverPage) save() bool {
+	nameserver := p.generateConfig()
 
 	if p.id == "" {
 		if p.callback != nil {
-			p.callback(page.ActionCreate, uuid.New().String(), node)
+			p.callback(page.ActionCreate, uuid.New().String(), nameserver)
 		}
 
 	} else {
 		if p.callback != nil {
-			p.callback(page.ActionUpdate, p.id, node)
+			p.callback(page.ActionUpdate, p.id, nameserver)
 		}
 	}
 
 	return true
 }
 
-func (p *nodePage) delete() {
+func (p *nameserverPage) delete() {
 	if p.callback != nil {
 		p.callback(page.ActionDelete, p.id, nil)
 	}

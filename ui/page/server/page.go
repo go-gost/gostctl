@@ -87,14 +87,16 @@ func NewPage(r *page.Router) page.Page {
 		interval: component.TextField{
 			Editor: widget.Editor{
 				SingleLine: true,
-				MaxLen:     10,
+				MaxLen:     16,
+				Filter:     "1234567890",
 			},
 			Suffix: material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout,
 		},
 		timeout: component.TextField{
 			Editor: widget.Editor{
 				SingleLine: true,
-				MaxLen:     10,
+				MaxLen:     16,
+				Filter:     "1234567890",
 			},
 			Suffix: material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout,
 		},

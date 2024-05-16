@@ -21,6 +21,7 @@ const (
 	uriAuther    = uriConfig + "/authers"
 	uriAdmission = uriConfig + "/admissions"
 	uriBypass    = uriConfig + "/bypasses"
+	uriResolver  = uriConfig + "/resolvers"
 	uriHosts     = uriConfig + "/hosts"
 )
 

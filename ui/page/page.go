@@ -23,6 +23,8 @@ const (
 	PageMatcher       PagePath = "/matcher"
 	PageAdmission     PagePath = "/admission"
 	PageBypass        PagePath = "/bypass"
+	PageResolver      PagePath = "/resolver"
+	PageNameServer    PagePath = "/resolver/nameserver"
 	PageHosts         PagePath = "/hosts"
 	PageHostMapping   PagePath = "/hosts/mapping"
 	PageSettings      PagePath = "/settings"
@@ -121,5 +123,9 @@ var (
 	PluginTypeOptions = []ui_widget.MenuOption{
 		{Key: i18n.PluginGRPC, Value: "grpc"},
 		{Key: i18n.PluginHTTP, Value: "http"},
+	}
+	IPTypeOptions = []ui_widget.MenuOption{
+		{Name: "IPv4", Value: "ipv4"},
+		{Name: "IPv6", Value: "ipv6"},
 	}
 )

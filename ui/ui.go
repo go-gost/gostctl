@@ -21,6 +21,8 @@ import (
 	"github.com/go-gost/gostctl/ui/page/matcher"
 	"github.com/go-gost/gostctl/ui/page/metadata"
 	"github.com/go-gost/gostctl/ui/page/node"
+	"github.com/go-gost/gostctl/ui/page/resolver"
+	"github.com/go-gost/gostctl/ui/page/resolver/nameserver"
 	"github.com/go-gost/gostctl/ui/page/server"
 	"github.com/go-gost/gostctl/ui/page/service"
 	forwarder_node "github.com/go-gost/gostctl/ui/page/service/node"
@@ -66,6 +68,8 @@ func NewUI(w *app.Window) *UI {
 	router.Register(page.PageMatcher, matcher.NewPage(router))
 	router.Register(page.PageAdmission, admission.NewPage(router))
 	router.Register(page.PageBypass, bypass.NewPage(router))
+	router.Register(page.PageResolver, resolver.NewPage(router))
+	router.Register(page.PageNameServer, nameserver.NewPage(router))
 	router.Register(page.PageHosts, hosts.NewPage(router))
 	router.Register(page.PageHostMapping, mapping.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))

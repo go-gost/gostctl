@@ -70,7 +70,10 @@ func NewPage(r *page.Router) page.Page {
 				list: list.Bypass(r),
 				path: page.PageBypass,
 			},
-			{},
+			{
+				list: list.Resolver(r),
+				path: page.PageResolver,
+			},
 			{
 				list: list.HostMapper(r),
 				path: page.PageHosts,

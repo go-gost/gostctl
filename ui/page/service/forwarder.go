@@ -311,6 +311,7 @@ func (p *forwarder) showSelectorStrategyMenu(gtx page.C) {
 		return p.menu.Layout(gtx, th)
 	})
 }
+
 func (p *forwarder) nodeCallback(action page.Action, id string, value any) {
 	if id == "" {
 		return
