@@ -679,7 +679,13 @@ func (p *servicePage) showHostMapperMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageHosts,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
+	}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

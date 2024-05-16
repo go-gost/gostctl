@@ -23,6 +23,8 @@ const (
 	PageMatcher       PagePath = "/matcher"
 	PageAdmission     PagePath = "/admission"
 	PageBypass        PagePath = "/bypass"
+	PageHosts         PagePath = "/hosts"
+	PageHostMapping   PagePath = "/hosts/mapping"
 	PageSettings      PagePath = "/settings"
 )
 

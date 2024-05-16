@@ -89,14 +89,14 @@ func NewPage(r *page.Router) page.Page {
 				SingleLine: true,
 				MaxLen:     10,
 			},
-			Suffix: material.Body1(r.Theme, i18n.Seconds.Value()).Layout,
+			Suffix: material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout,
 		},
 		timeout: component.TextField{
 			Editor: widget.Editor{
 				SingleLine: true,
 				MaxLen:     10,
 			},
-			Suffix: material.Body1(r.Theme, i18n.Seconds.Value()).Layout,
+			Suffix: material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout,
 		},
 
 		autoSave: ui_widget.Switcher{Title: i18n.AutoSave},

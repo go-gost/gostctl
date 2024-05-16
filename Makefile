@@ -37,8 +37,8 @@ windows-arm64:
 
 # go install gioui.org/cmd/gogio@latest
 android:
-	gogio -x -work -target android -minsdk 22 -version $(VERSION).1 -name GOST -signkey build/sign.keystore -signpass android -appid gost.ctl -o $(BINDIR)/$(NAME)-$(VERSION).aab .
-	gogio -x -work -target android -minsdk 22 -version $(VERSION).1 -name GOST -signkey build/sign.keystore -signpass android -appid gost.ctl -o $(BINDIR)/$(NAME)-$(VERSION).apk .
+	gogio -x -work -target android -minsdk 22 -version $(VERSION).1 -name GOST -signkey build/sign.keystore -signpass android -appid gost.run -o $(BINDIR)/$(NAME)-$(VERSION).aab .
+	gogio -x -work -target android -minsdk 22 -version $(VERSION).1 -name GOST -signkey build/sign.keystore -signpass android -appid gost.run -o $(BINDIR)/$(NAME)-$(VERSION).apk .
 
 gz_releases=$(addsuffix .gz, $(PLATFORM_LIST))
 zip_releases=$(addsuffix .zip, $(WINDOWS_ARCH_LIST))

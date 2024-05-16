@@ -21,6 +21,7 @@ const (
 	uriAuther    = uriConfig + "/authers"
 	uriAdmission = uriConfig + "/admissions"
 	uriBypass    = uriConfig + "/bypasses"
+	uriHosts     = uriConfig + "/hosts"
 )
 
 var (

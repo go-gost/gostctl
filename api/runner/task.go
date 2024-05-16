@@ -33,6 +33,10 @@ const (
 	TaskCreateBypass TaskID = "api.bypass.create"
 	TaskUpdateBypass TaskID = "api.bypass.update"
 	TaskDeleteBypass TaskID = "api.bypass.delete"
+
+	TaskCreateHosts TaskID = "api.hosts.create"
+	TaskUpdateHosts TaskID = "api.hosts.update"
+	TaskDeleteHosts TaskID = "api.hosts.delete"
 )
 
 type Task interface {
