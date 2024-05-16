@@ -18,6 +18,8 @@ import (
 	"github.com/go-gost/gostctl/ui/page/hop"
 	"github.com/go-gost/gostctl/ui/page/hosts"
 	"github.com/go-gost/gostctl/ui/page/hosts/mapping"
+	"github.com/go-gost/gostctl/ui/page/limiter"
+	"github.com/go-gost/gostctl/ui/page/limiter/limit"
 	"github.com/go-gost/gostctl/ui/page/matcher"
 	"github.com/go-gost/gostctl/ui/page/metadata"
 	"github.com/go-gost/gostctl/ui/page/node"
@@ -72,6 +74,8 @@ func NewUI(w *app.Window) *UI {
 	router.Register(page.PageNameServer, nameserver.NewPage(router))
 	router.Register(page.PageHosts, hosts.NewPage(router))
 	router.Register(page.PageHostMapping, mapping.NewPage(router))
+	router.Register(page.PageLimiter, limiter.NewPage(router))
+	router.Register(page.PageLimit, limit.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{

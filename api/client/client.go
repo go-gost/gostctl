@@ -23,6 +23,7 @@ const (
 	uriBypass    = uriConfig + "/bypasses"
 	uriResolver  = uriConfig + "/resolvers"
 	uriHosts     = uriConfig + "/hosts"
+	uriLimiter   = uriConfig + "/limiters"
 )
 
 var (

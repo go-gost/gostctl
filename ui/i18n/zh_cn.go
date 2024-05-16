@@ -86,7 +86,9 @@ var zh_CN = map[Key]string{
 	DeleteResolver:     "删除域名解析器？",
 	DeleteNameserver:   "删除名称服务器",
 	DeleteHosts:        "删除主机映射器？",
-	DeleteHostMappings: "删除映射列表",
+	DeleteHostMappings: "删除映射列表？",
+	DeleteLimiter:      "删除限速器？",
+	DeleteLimits:       "删除限速配置？",
 
 	SelectorStrategy: "策略",
 	SelectorRound:    "轮询",
@@ -129,6 +131,7 @@ var zh_CN = map[Key]string{
 	Prefer:         "优先",
 	Only:           "仅使用",
 	ClientIP:       "客户端IP",
+	Limits:         "限制",
 
 	ErrNameRequired: "名称必须填写",
 	ErrNameExists:   "名称已存在",

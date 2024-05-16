@@ -27,6 +27,8 @@ const (
 	PageNameServer    PagePath = "/resolver/nameserver"
 	PageHosts         PagePath = "/hosts"
 	PageHostMapping   PagePath = "/hosts/mapping"
+	PageLimiter       PagePath = "/limiter"
+	PageLimit         PagePath = "/limiter/limit"
 	PageSettings      PagePath = "/settings"
 )
 

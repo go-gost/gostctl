@@ -41,6 +41,10 @@ const (
 	TaskCreateHosts TaskID = "api.hosts.create"
 	TaskUpdateHosts TaskID = "api.hosts.update"
 	TaskDeleteHosts TaskID = "api.hosts.delete"
+
+	TaskCreateLimiter TaskID = "api.limiter.create"
+	TaskUpdateLimiter TaskID = "api.limiter.update"
+	TaskDeleteLimiter TaskID = "api.limiter.delete"
 )
 
 type Task interface {

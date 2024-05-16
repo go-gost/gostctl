@@ -645,7 +645,13 @@ func (p *servicePage) showResolverMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageResolver,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
+	}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -719,7 +725,13 @@ func (p *servicePage) showLimiterMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageLimiter,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
+	}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

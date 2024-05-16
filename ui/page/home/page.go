@@ -38,7 +38,7 @@ func NewPage(r *page.Router) page.Page {
 			ui_widget.NewNavButton(i18n.Resolver),
 			ui_widget.NewNavButton(i18n.Hosts),
 			ui_widget.NewNavButton(i18n.Limiter),
-			ui_widget.NewNavButton(i18n.Ingress),
+			ui_widget.NewNavButton(i18n.Observer),
 			ui_widget.NewNavButton(i18n.Logger),
 		),
 		pages: []navPage{
@@ -77,6 +77,10 @@ func NewPage(r *page.Router) page.Page {
 			{
 				list: list.HostMapper(r),
 				path: page.PageHosts,
+			},
+			{
+				list: list.Limiter(r),
+				path: page.PageLimiter,
 			},
 		},
 	}

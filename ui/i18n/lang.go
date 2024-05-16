@@ -141,6 +141,7 @@ const (
 	Prefer         Key = "prefer"
 	Only           Key = "only"
 	ClientIP       Key = "clientIP"
+	Limits         Key = "limits"
 
 	DeleteServer       Key = "deleteServer"
 	DeleteService      Key = "deleteService"
@@ -157,6 +158,8 @@ const (
 	DeleteNameserver   Key = "deleteNameserver"
 	DeleteHosts        Key = "deleteHosts"
 	DeleteHostMappings Key = "deleteHostMappings"
+	DeleteLimiter      Key = "deleteLimiter"
+	DeleteLimits       Key = "deleteLimits"
 
 	SelectorStrategy Key = "selectorStrategy"
 	SelectorRound    Key = "selectorRound"

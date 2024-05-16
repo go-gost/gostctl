@@ -87,6 +87,8 @@ var en_US = map[Key]string{
 	DeleteNameserver:   "Delete nameserver?",
 	DeleteHosts:        "Delete hosts?",
 	DeleteHostMappings: "Delete host mappings?",
+	DeleteLimiter:      "Delete limiter?",
+	DeleteLimits:       "Delete limits?",
 
 	SelectorStrategy: "Strategy",
 	SelectorRound:    "Round-Robin",
@@ -129,6 +131,7 @@ var en_US = map[Key]string{
 	Prefer:         "Prefer",
 	Only:           "Only",
 	ClientIP:       "Client IP",
+	Limits:         "Limits",
 
 	ErrNameRequired: "name is required",
 	ErrNameExists:   "name exists",
