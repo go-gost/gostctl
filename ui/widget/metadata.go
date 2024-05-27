@@ -1,8 +1,6 @@
-package metadata
+package widget
 
 import (
-	"strings"
-
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -10,14 +8,15 @@ import (
 	"github.com/go-gost/gostctl/ui/i18n"
 )
 
-type metadataDialog struct {
-	kv        kv
+type MetadataDialog struct {
+	K         component.TextField
+	V         component.TextField
 	OnClick   func(ok bool)
 	btnCancel widget.Clickable
 	btnOK     widget.Clickable
 }
 
-func (p *metadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (p *MetadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{
 			Top:    16,
@@ -53,10 +52,25 @@ func (p *metadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.D
 
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return layout.Inset{
-								Top:    8,
-								Bottom: 8,
+								Top:    16,
+								Bottom: 16,
+								Left:   24,
+								Right:  24,
 							}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return p.kv.Layout(gtx, th)
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(material.Body1(th, i18n.MetadataKey.Value()).Layout),
+									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+										return p.K.Layout(gtx, th, "")
+									}),
+									layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+									layout.Rigid(material.Body1(th, i18n.MetadataValue.Value()).Layout),
+									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+										return p.V.Layout(gtx, th, "")
+									}),
+								)
 							})
 						}),
 
@@ -130,43 +144,5 @@ func (p *metadataDialog) Layout(gtx layout.Context, th *material.Theme) layout.D
 				})
 			})
 		})
-	})
-}
-
-type kv struct {
-	k component.TextField
-	v component.TextField
-}
-
-func (p *kv) Get() (string, string) {
-	return strings.TrimSpace(p.k.Text()), strings.TrimSpace(p.v.Text())
-}
-
-func (p *kv) Set(k, v string) {
-	p.k.SetText(k)
-	p.v.SetText(v)
-}
-
-func (p *kv) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	return layout.Inset{
-		Top:    8,
-		Bottom: 8,
-		Left:   24,
-		Right:  24,
-	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{
-			Axis: layout.Vertical,
-		}.Layout(gtx,
-			layout.Rigid(material.Body1(th, i18n.MetadataKey.Value()).Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return p.k.Layout(gtx, th, "")
-			}),
-			layout.Rigid(layout.Spacer{Height: 8}.Layout),
-
-			layout.Rigid(material.Body1(th, i18n.MetadataValue.Value()).Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return p.v.Layout(gtx, th, "")
-			}),
-		)
 	})
 }

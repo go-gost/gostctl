@@ -16,6 +16,13 @@ import (
 	"github.com/google/uuid"
 )
 
+type metadata struct {
+	k      string
+	v      string
+	clk    widget.Clickable
+	delete widget.Clickable
+}
+
 type nodePage struct {
 	router *page.Router
 
@@ -256,7 +263,6 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
-						layout.Flexed(1, layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
@@ -266,6 +272,8 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 						}),
 					)
 				}),
+
+				layout.Rigid(layout.Spacer{Height: 16}.Layout),
 
 				layout.Rigid(material.Body1(th, i18n.Name.Value()).Layout),
 				layout.Rigid(func(gtx page.C) page.D {
@@ -468,8 +476,12 @@ func (p *nodePage) generateConfig() *api.NodeConfig {
 
 	connector := &api.ConnectorConfig{
 		Type:     p.connector.typ.Value(),
-		Metadata: p.connector.metadata,
+		Metadata: make(map[string]any),
 	}
+	for i := range p.dialer.metadata {
+		connector.Metadata[p.connector.metadata[i].k] = p.connector.metadata[i].v
+	}
+
 	if p.connector.enableAuth.Value() {
 		connector.Auth = &api.AuthConfig{
 			Username: strings.TrimSpace(p.connector.username.Text()),
@@ -480,8 +492,12 @@ func (p *nodePage) generateConfig() *api.NodeConfig {
 
 	dialer := &api.DialerConfig{
 		Type:     p.dialer.typ.Value(),
-		Metadata: p.dialer.metadata,
+		Metadata: make(map[string]any),
 	}
+	for i := range p.dialer.metadata {
+		dialer.Metadata[p.dialer.metadata[i].k] = p.dialer.metadata[i].v
+	}
+
 	if p.dialer.enableAuth.Value() {
 		dialer.Auth = &api.AuthConfig{
 			Username: strings.TrimSpace(p.dialer.username.Text()),

@@ -45,6 +45,14 @@ const (
 	TaskCreateLimiter TaskID = "api.limiter.create"
 	TaskUpdateLimiter TaskID = "api.limiter.update"
 	TaskDeleteLimiter TaskID = "api.limiter.delete"
+
+	TaskCreateObserver TaskID = "api.observer.create"
+	TaskUpdateObserver TaskID = "api.observer.update"
+	TaskDeleteObserver TaskID = "api.observer.delete"
+
+	TaskCreateRecorder TaskID = "api.recorder.create"
+	TaskUpdateRecorder TaskID = "api.recorder.update"
+	TaskDeleteRecorder TaskID = "api.recorder.delete"
 )
 
 type Task interface {

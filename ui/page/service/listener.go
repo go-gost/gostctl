@@ -2,16 +2,19 @@ package service
 
 import (
 	"strconv"
+	"strings"
 
+	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/go-gost/gostctl/api"
 	"github.com/go-gost/gostctl/ui/i18n"
+	"github.com/go-gost/gostctl/ui/icons"
 	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/theme"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
-	"github.com/google/uuid"
 )
 
 type listener struct {
@@ -31,8 +34,12 @@ type listener struct {
 	tlsKeyFile  component.TextField
 	tlsCAFile   component.TextField
 
-	metadata   api.Metadata
-	mdSelector ui_widget.Selector
+	metadata          []metadata
+	mdSelector        ui_widget.Selector
+	mdFolded          bool
+	mdAdd             widget.Clickable
+	mdDialog          ui_widget.MetadataDialog
+	delMetadataDialog ui_widget.Dialog
 }
 
 func newListener(service *servicePage) *listener {
@@ -61,6 +68,21 @@ func newListener(service *servicePage) *listener {
 			},
 		},
 		mdSelector: ui_widget.Selector{Title: i18n.Metadata},
+		mdDialog: ui_widget.MetadataDialog{
+			K: component.TextField{
+				Editor: widget.Editor{
+					SingleLine: true,
+					MaxLen:     255,
+				},
+			},
+			V: component.TextField{
+				Editor: widget.Editor{
+					SingleLine: true,
+					MaxLen:     255,
+				},
+			},
+		},
+		delMetadataDialog: ui_widget.Dialog{Title: i18n.DeleteMetadata},
 	}
 }
 
@@ -119,9 +141,20 @@ func (l *listener) init(cfg *api.ListenerConfig) {
 		}
 	}
 
-	l.metadata = api.NewMetadata(cfg.Metadata)
+	l.metadata = nil
+	md := api.NewMetadata(cfg.Metadata)
+	for k := range md {
+		if k == "" {
+			continue
+		}
+		l.metadata = append(l.metadata, metadata{
+			k: k,
+			v: md.GetString(k),
+		})
+	}
 	l.mdSelector.Clear()
 	l.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
+	l.mdFolded = true
 }
 
 func (l *listener) Layout(gtx page.C, th *page.T) page.D {
@@ -282,25 +315,173 @@ func (l *listener) Layout(gtx page.C, th *page.T) page.D {
 		}),
 
 		layout.Rigid(func(gtx page.C) page.D {
-			gtx.Source = src
-
-			if l.mdSelector.Clicked(gtx) {
-				perm := page.PermRead
-				if l.service.edit {
-					perm = page.PermWrite | page.PermDelete
-				}
-				l.service.router.Goto(page.Route{
-					Path:     page.PageMetadata,
-					ID:       uuid.New().String(),
-					Value:    l.metadata,
-					Callback: l.mdCallback,
-					Perm:     perm,
-				})
+			if l.mdAdd.Clicked(gtx) {
+				l.showMetadataDialog(gtx, -1)
 			}
 
-			return l.mdSelector.Layout(gtx, th)
+			return layout.Flex{
+				Alignment: layout.Middle,
+			}.Layout(gtx,
+				layout.Flexed(1, func(gtx page.C) page.D {
+					gtx.Source = src
+
+					if l.mdSelector.Clicked(gtx) {
+						l.mdFolded = !l.mdFolded
+					}
+					return l.mdSelector.Layout(gtx, th)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if !l.service.edit {
+						return page.D{}
+					}
+					return layout.Spacer{Width: 8}.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx page.C) page.D {
+					if !l.service.edit {
+						return page.D{}
+					}
+					btn := material.IconButton(th, &l.mdAdd, icons.IconAdd, "Add")
+					btn.Background = theme.Current().ContentSurfaceBg
+					btn.Color = th.Fg
+					// btn.Inset = layout.UniformInset(8)
+					return btn.Layout(gtx)
+				}),
+			)
+		}),
+		layout.Rigid(func(gtx page.C) page.D {
+			if l.mdFolded {
+				return page.D{}
+			}
+
+			gtx.Source = src
+			return l.layoutMetadata(gtx, th)
 		}),
 	)
+}
+
+func (l *listener) layoutMetadata(gtx page.C, th *page.T) page.D {
+	for i := range l.metadata {
+		if l.metadata[i].clk.Clicked(gtx) {
+			if l.service.edit {
+				l.showMetadataDialog(gtx, i)
+			}
+			break
+		}
+
+		if l.metadata[i].delete.Clicked(gtx) {
+			l.delMetadataDialog.OnClick = func(ok bool) {
+				l.service.router.HideModal(gtx)
+				if !ok {
+					return
+				}
+				l.metadata = append(l.metadata[:i], l.metadata[i+1:]...)
+
+				l.mdSelector.Clear()
+				l.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
+			}
+			l.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+				return l.delMetadataDialog.Layout(gtx, th)
+			})
+			break
+		}
+	}
+
+	var children []layout.FlexChild
+	for i := range l.metadata {
+		md := &l.metadata[i]
+
+		children = append(children,
+			layout.Rigid(func(gtx page.C) page.D {
+				return layout.Flex{
+					Alignment: layout.Middle,
+				}.Layout(gtx,
+					layout.Flexed(1, func(gtx page.C) page.D {
+						return material.Clickable(gtx, &md.clk, func(gtx page.C) page.D {
+							return layout.Inset{
+								Top:    8,
+								Bottom: 8,
+								Left:   8,
+								Right:  8,
+							}.Layout(gtx, func(gtx page.C) page.D {
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(func(gtx page.C) page.D {
+										label := material.Body2(th, md.k)
+										label.Font.Weight = font.SemiBold
+										return label.Layout(gtx)
+									}),
+									layout.Rigid(layout.Spacer{Height: 4}.Layout),
+									layout.Rigid(func(gtx page.C) page.D {
+										return material.Body2(th, md.v).Layout(gtx)
+									}),
+								)
+							})
+						})
+					}),
+					layout.Rigid(func(gtx page.C) page.D {
+						if !l.service.edit {
+							return page.D{}
+						}
+						return layout.Spacer{Width: 8}.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx page.C) page.D {
+						if !l.service.edit {
+							return page.D{}
+						}
+						btn := material.IconButton(th, &md.delete, icons.IconDelete, "delete")
+						btn.Background = theme.Current().ContentSurfaceBg
+						btn.Color = th.Fg
+						// btn.Inset = layout.UniformInset(8)
+						return btn.Layout(gtx)
+					}),
+				)
+			}),
+		)
+	}
+
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(gtx, children...)
+}
+
+func (l *listener) showMetadataDialog(gtx page.C, i int) {
+	l.mdDialog.K.Clear()
+	l.mdDialog.V.Clear()
+
+	if i >= 0 && i < len(l.metadata) {
+		l.mdDialog.K.SetText(l.metadata[i].k)
+		l.mdDialog.V.SetText(l.metadata[i].v)
+	}
+
+	l.mdDialog.OnClick = func(ok bool) {
+		l.service.router.HideModal(gtx)
+		if !ok {
+			return
+		}
+
+		k, v := strings.TrimSpace(l.mdDialog.K.Text()), strings.TrimSpace(l.mdDialog.V.Text())
+		if k == "" {
+			return
+		}
+
+		if i >= 0 && i < len(l.metadata) {
+			l.metadata[i].k = k
+			l.metadata[i].v = v
+		} else {
+			l.metadata = append(l.metadata, metadata{
+				k: k,
+				v: v,
+			})
+		}
+
+		l.mdSelector.Clear()
+		l.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
+	}
+
+	l.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+		return l.mdDialog.Layout(gtx, th)
+	})
 }
 
 var (
@@ -487,21 +668,4 @@ func (l *listener) showAutherMenu(gtx page.C) {
 	l.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 		return l.menu.Layout(gtx, th)
 	})
-}
-
-func (l *listener) mdCallback(action page.Action, id string, value any) {
-	if id == "" {
-		return
-	}
-
-	switch action {
-	case page.ActionUpdate:
-		l.metadata, _ = value.(api.Metadata)
-
-	case page.ActionDelete:
-		l.metadata = nil
-	}
-
-	l.mdSelector.Clear()
-	l.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(l.metadata))})
 }

@@ -24,6 +24,8 @@ const (
 	uriResolver  = uriConfig + "/resolvers"
 	uriHosts     = uriConfig + "/hosts"
 	uriLimiter   = uriConfig + "/limiters"
+	uriObserver  = uriConfig + "/observers"
+	uriRecorder  = uriConfig + "/recorders"
 )
 
 var (

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -20,6 +21,13 @@ import (
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
 	"github.com/google/uuid"
 )
+
+type metadata struct {
+	k      string
+	v      string
+	clk    widget.Clickable
+	delete widget.Clickable
+}
 
 type servicePage struct {
 	router *page.Router
@@ -46,8 +54,10 @@ type servicePage struct {
 	resolver   ui_widget.Selector
 	hostMapper ui_widget.Selector
 	limiter    ui_widget.Selector
-	logger     ui_widget.Selector
 	observer   ui_widget.Selector
+
+	recorders        []*api.RecorderObject
+	recorderSelector ui_widget.Selector
 
 	id   string
 	perm page.Perm
@@ -55,10 +65,14 @@ type servicePage struct {
 	edit   bool
 	create bool
 
-	metadata   api.Metadata
+	metadata   []metadata
 	mdSelector ui_widget.Selector
+	mdFolded   bool
+	mdAdd      widget.Clickable
+	mdDialog   ui_widget.MetadataDialog
 
-	delDialog ui_widget.Dialog
+	delDialog         ui_widget.Dialog
+	delMetadataDialog ui_widget.Dialog
 
 	handler   *handler
 	listener  *listener
@@ -85,7 +99,8 @@ func NewPage(r *page.Router) page.Page {
 				MaxLen:     255,
 			},
 		},
-		delDialog: ui_widget.Dialog{Title: i18n.DeleteService},
+		delDialog:         ui_widget.Dialog{Title: i18n.DeleteService},
+		delMetadataDialog: ui_widget.Dialog{Title: i18n.DeleteMetadata},
 
 		// stats:           ui_widget.Switcher{Title: "Stats"},
 		/*
@@ -102,15 +117,29 @@ func NewPage(r *page.Router) page.Page {
 			},
 		*/
 
-		admission:  ui_widget.Selector{Title: i18n.Admission},
-		bypass:     ui_widget.Selector{Title: i18n.Bypass},
-		resolver:   ui_widget.Selector{Title: i18n.Resolver},
-		hostMapper: ui_widget.Selector{Title: i18n.Hosts},
-		limiter:    ui_widget.Selector{Title: i18n.Limiter},
-		logger:     ui_widget.Selector{Title: i18n.Logger},
-		observer:   ui_widget.Selector{Title: i18n.Observer},
+		admission:        ui_widget.Selector{Title: i18n.Admission},
+		bypass:           ui_widget.Selector{Title: i18n.Bypass},
+		resolver:         ui_widget.Selector{Title: i18n.Resolver},
+		hostMapper:       ui_widget.Selector{Title: i18n.Hosts},
+		limiter:          ui_widget.Selector{Title: i18n.Limiter},
+		observer:         ui_widget.Selector{Title: i18n.Observer},
+		recorderSelector: ui_widget.Selector{Title: i18n.Recorder},
 
 		mdSelector: ui_widget.Selector{Title: i18n.Metadata},
+		mdDialog: ui_widget.MetadataDialog{
+			K: component.TextField{
+				Editor: widget.Editor{
+					SingleLine: true,
+					MaxLen:     255,
+				},
+			},
+			V: component.TextField{
+				Editor: widget.Editor{
+					SingleLine: true,
+					MaxLen:     255,
+				},
+			},
+		},
 	}
 
 	p.handler = newHandler(p)
@@ -212,24 +241,24 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		p.observer.Select(ui_widget.SelectorItem{Value: service.Observer})
 	}
 
-	{
-		p.logger.Clear()
-		var items []ui_widget.SelectorItem
-		if service.Logger != "" {
-			items = append(items, ui_widget.SelectorItem{Value: service.Logger})
-		}
+	p.recorders = service.Recorders
+	p.recorderSelector.Clear()
+	p.recorderSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.recorders))})
 
-		for _, v := range service.Loggers {
-			items = append(items, ui_widget.SelectorItem{
-				Value: v,
-			})
+	p.metadata = nil
+	md := api.NewMetadata(service.Metadata)
+	for k := range md {
+		if k == "" {
+			continue
 		}
-		p.logger.Select(items...)
+		p.metadata = append(p.metadata, metadata{
+			k: k,
+			v: md.GetString(k),
+		})
 	}
-
-	p.metadata = api.NewMetadata(service.Metadata)
 	p.mdSelector.Clear()
 	p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+	p.mdFolded = true
 
 	p.handler.init(service.Handler)
 	p.listener.init(service.Listener)
@@ -352,7 +381,6 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
-						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
@@ -362,6 +390,8 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 						}),
 					)
 				}),
+
+				layout.Rigid(layout.Spacer{Height: 16}.Layout),
 
 				layout.Rigid(material.Body1(th, i18n.Name.Value()).Layout),
 				layout.Rigid(func(gtx page.C) page.D {
@@ -443,30 +473,65 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 						}),
 
 						layout.Rigid(func(gtx page.C) page.D {
-							if p.logger.Clicked(gtx) {
-								p.showLoggerMenu(gtx)
-							}
-							return p.logger.Layout(gtx, th)
-						}),
-
-						layout.Rigid(func(gtx page.C) page.D {
 							gtx.Source = src
 
-							if p.mdSelector.Clicked(gtx) {
+							if p.recorderSelector.Clicked(gtx) {
 								perm := page.PermRead
 								if p.edit {
 									perm = page.PermWrite | page.PermDelete
 								}
 								p.router.Goto(page.Route{
-									Path:     page.PageMetadata,
+									Path:     page.PageServiceRecorder,
 									ID:       uuid.New().String(),
-									Value:    p.metadata,
-									Callback: p.mdCallback,
+									Value:    p.recorders,
+									Callback: p.recorderCallback,
 									Perm:     perm,
 								})
 							}
+							return p.recorderSelector.Layout(gtx, th)
+						}),
 
-							return p.mdSelector.Layout(gtx, th)
+						layout.Rigid(func(gtx page.C) page.D {
+							if p.mdAdd.Clicked(gtx) {
+								p.showMetadataDialog(gtx, -1)
+							}
+
+							return layout.Flex{
+								Alignment: layout.Middle,
+							}.Layout(gtx,
+								layout.Flexed(1, func(gtx page.C) page.D {
+									gtx.Source = src
+
+									if p.mdSelector.Clicked(gtx) {
+										p.mdFolded = !p.mdFolded
+									}
+									return p.mdSelector.Layout(gtx, th)
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									if !p.edit {
+										return page.D{}
+									}
+									return layout.Spacer{Width: 8}.Layout(gtx)
+								}),
+								layout.Rigid(func(gtx page.C) page.D {
+									if !p.edit {
+										return page.D{}
+									}
+									btn := material.IconButton(th, &p.mdAdd, icons.IconAdd, "Add")
+									btn.Background = theme.Current().ContentSurfaceBg
+									btn.Color = th.Fg
+									// btn.Inset = layout.UniformInset(8)
+									return btn.Layout(gtx)
+								}),
+							)
+						}),
+						layout.Rigid(func(gtx page.C) page.D {
+							if p.mdFolded {
+								return page.D{}
+							}
+
+							gtx.Source = src
+							return p.layoutMetadata(gtx, th)
 						}),
 						layout.Rigid(layout.Spacer{Height: 8}.Layout),
 					)
@@ -520,24 +585,130 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 	})
 }
 
-/*
-func (p *servicePage) showInterfaceDialog(gtx  page.C)  {
-	p.interfaceDialog.Input.Clear()
-	p.interfaceDialog.Input.SetText(p.customInterface.Value())
-	p.interfaceDialog.OnClick = func(ok bool) {
-		p.modal.Disappear(gtx.Now)
+func (p *servicePage) layoutMetadata(gtx page.C, th *page.T) page.D {
+	for i := range p.metadata {
+		if p.metadata[i].clk.Clicked(gtx) {
+			if p.edit {
+				p.showMetadataDialog(gtx, i)
+			}
+			break
+		}
 
-		if ok {
-			p.customInterface.Clear()
-			p.customInterface.Select(ui_widget.SelectorItem{Value: strings.TrimSpace(p.interfaceDialog.Input.Text())})
+		if p.metadata[i].delete.Clicked(gtx) {
+			p.delMetadataDialog.OnClick = func(ok bool) {
+				p.router.HideModal(gtx)
+				if !ok {
+					return
+				}
+				p.metadata = append(p.metadata[:i], p.metadata[i+1:]...)
+
+				p.mdSelector.Clear()
+				p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+			}
+			p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+				return p.delMetadataDialog.Layout(gtx, th)
+			})
+			break
 		}
 	}
-	p.modal.Widget = func(gtx page.C, th *material.Theme, anim *component.VisibilityAnimation) page.D {
-		return p.interfaceDialog.Layout(gtx, th)
+
+	var children []layout.FlexChild
+	for i := range p.metadata {
+		md := &p.metadata[i]
+
+		children = append(children,
+			layout.Rigid(func(gtx page.C) page.D {
+				return layout.Flex{
+					Alignment: layout.Middle,
+				}.Layout(gtx,
+					layout.Flexed(1, func(gtx page.C) page.D {
+						return material.Clickable(gtx, &md.clk, func(gtx page.C) page.D {
+							return layout.Inset{
+								Top:    8,
+								Bottom: 8,
+								Left:   8,
+								Right:  8,
+							}.Layout(gtx, func(gtx page.C) page.D {
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(func(gtx page.C) page.D {
+										label := material.Body2(th, md.k)
+										label.Font.Weight = font.SemiBold
+										return label.Layout(gtx)
+									}),
+									layout.Rigid(layout.Spacer{Height: 4}.Layout),
+									layout.Rigid(func(gtx page.C) page.D {
+										return material.Body2(th, md.v).Layout(gtx)
+									}),
+								)
+							})
+						})
+					}),
+					layout.Rigid(func(gtx page.C) page.D {
+						if !p.edit {
+							return page.D{}
+						}
+						return layout.Spacer{Width: 8}.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx page.C) page.D {
+						if !p.edit {
+							return page.D{}
+						}
+						btn := material.IconButton(th, &md.delete, icons.IconDelete, "delete")
+						btn.Background = theme.Current().ContentSurfaceBg
+						btn.Color = th.Fg
+						// btn.Inset = layout.UniformInset(8)
+						return btn.Layout(gtx)
+					}),
+				)
+			}),
+		)
 	}
-	p.modal.Appear(gtx.Now)
+
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(gtx, children...)
 }
-*/
+
+func (p *servicePage) showMetadataDialog(gtx page.C, i int) {
+	p.mdDialog.K.Clear()
+	p.mdDialog.V.Clear()
+
+	if i >= 0 && i < len(p.metadata) {
+		p.mdDialog.K.SetText(p.metadata[i].k)
+		p.mdDialog.V.SetText(p.metadata[i].v)
+	}
+
+	p.mdDialog.OnClick = func(ok bool) {
+		p.router.HideModal(gtx)
+		if !ok {
+			return
+		}
+
+		k, v := strings.TrimSpace(p.mdDialog.K.Text()), strings.TrimSpace(p.mdDialog.V.Text())
+		if k == "" {
+			return
+		}
+
+		if i >= 0 && i < len(p.metadata) {
+			p.metadata[i].k = k
+			p.metadata[i].v = v
+		} else {
+			p.metadata = append(p.metadata, metadata{
+				k: k,
+				v: v,
+			})
+		}
+
+		p.mdSelector.Clear()
+		p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+	}
+
+	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+		return p.mdDialog.Layout(gtx, th)
+	})
+}
 
 func (p *servicePage) showAdmissionMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
@@ -765,7 +936,13 @@ func (p *servicePage) showObserverMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageObserver,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
+	}
 	p.menu.Multiple = false
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
@@ -773,6 +950,7 @@ func (p *servicePage) showObserverMenu(gtx page.C) {
 	})
 }
 
+/*
 func (p *servicePage) showLoggerMenu(gtx page.C) {
 	options := []ui_widget.MenuOption{}
 	for _, v := range api.GetConfig().Loggers {
@@ -806,22 +984,23 @@ func (p *servicePage) showLoggerMenu(gtx page.C) {
 		return p.menu.Layout(gtx, th)
 	})
 }
+*/
 
-func (p *servicePage) mdCallback(action page.Action, id string, value any) {
+func (p *servicePage) recorderCallback(action page.Action, id string, value any) {
 	if id == "" {
 		return
 	}
 
 	switch action {
 	case page.ActionUpdate:
-		p.metadata, _ = value.(api.Metadata)
+		p.recorders, _ = value.([]*api.RecorderObject)
 
 	case page.ActionDelete:
-		p.metadata = nil
+		p.recorders = nil
 	}
 
-	p.mdSelector.Clear()
-	p.mdSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.metadata))})
+	p.recorderSelector.Clear()
+	p.recorderSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.recorders))})
 }
 
 func (p *servicePage) save() bool {
@@ -868,23 +1047,48 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 	// svcCfg.Interface = p.customInterface.Value()
 
 	svcCfg.Admission = ""
-	svcCfg.Admissions = p.admission.Values()
+	svcCfg.Admissions = nil
+	if admissions := p.admission.Values(); len(admissions) > 1 {
+		svcCfg.Admissions = admissions
+	} else {
+		if len(admissions) > 0 {
+			svcCfg.Admission = admissions[0]
+		}
+	}
 
 	svcCfg.Bypass = ""
-	svcCfg.Bypasses = p.bypass.Values()
+	svcCfg.Bypasses = nil
+	if bypasses := p.bypass.Values(); len(bypasses) > 1 {
+		svcCfg.Bypasses = bypasses
+	} else {
+		if len(bypasses) > 0 {
+			svcCfg.Bypass = bypasses[0]
+		}
+	}
 
 	svcCfg.Resolver = p.resolver.Value()
 	svcCfg.Hosts = p.hostMapper.Value()
 	svcCfg.Limiter = p.limiter.Value()
-
-	svcCfg.Logger = ""
-	svcCfg.Loggers = p.logger.Values()
 	svcCfg.Observer = p.observer.Value()
 
-	if svcCfg.Metadata == nil {
-		svcCfg.Metadata = make(map[string]any)
-	}
+	/*
+		svcCfg.Logger = ""
+		svcCfg.Loggers = nil
+		if loggers := p.logger.Values(); len(loggers) > 1 {
+			svcCfg.Loggers = loggers
+		} else {
+			if len(loggers) > 0 {
+				svcCfg.Logger = loggers[0]
+			}
+		}
+	*/
+	svcCfg.Recorders = p.recorders
+
+	svcCfg.Metadata = make(map[string]any)
 	svcCfg.Metadata["enablestats"] = true
+	for i := range p.metadata {
+		svcCfg.Metadata[p.metadata[i].k] = p.metadata[i].v
+	}
 
 	if svcCfg.Handler == nil {
 		svcCfg.Handler = &api.HandlerConfig{}
@@ -897,7 +1101,13 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 	svcCfg.Handler.Authers = nil
 	svcCfg.Handler.Auth = nil
 	if p.handler.authType.Value == string(page.AuthAuther) {
-		svcCfg.Handler.Authers = p.handler.auther.Values()
+		if authers := p.handler.auther.Values(); len(authers) > 1 {
+			svcCfg.Handler.Authers = authers
+		} else {
+			if len(authers) > 0 {
+				svcCfg.Handler.Auther = authers[0]
+			}
+		}
 	}
 	if p.handler.authType.Value == string(page.AuthSimple) {
 		username := strings.TrimSpace(p.handler.username.Text())
@@ -910,10 +1120,13 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 		}
 	}
 
-	svcCfg.Limiter = p.handler.limiter.Value()
-	svcCfg.Observer = p.handler.observer.Value()
+	svcCfg.Handler.Limiter = p.handler.limiter.Value()
+	svcCfg.Handler.Observer = p.handler.observer.Value()
 
-	svcCfg.Handler.Metadata = p.handler.metadata
+	svcCfg.Handler.Metadata = make(map[string]any)
+	for i := range p.handler.metadata {
+		svcCfg.Handler.Metadata[p.handler.metadata[i].k] = p.handler.metadata[i].v
+	}
 
 	if svcCfg.Listener == nil {
 		svcCfg.Listener = &api.ListenerConfig{}
@@ -926,7 +1139,13 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 	svcCfg.Listener.Authers = nil
 	svcCfg.Listener.Auth = nil
 	if p.listener.authType.Value == string(page.AuthAuther) {
-		svcCfg.Listener.Authers = p.listener.auther.Values()
+		if authers := p.listener.auther.Values(); len(authers) > 1 {
+			svcCfg.Listener.Authers = authers
+		} else {
+			if len(authers) > 0 {
+				svcCfg.Listener.Auther = authers[0]
+			}
+		}
 	}
 	if p.listener.authType.Value == string(page.AuthSimple) {
 		username := strings.TrimSpace(p.listener.username.Text())
@@ -948,7 +1167,10 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 		}
 	}
 
-	svcCfg.Listener.Metadata = p.listener.metadata
+	svcCfg.Listener.Metadata = make(map[string]any)
+	for i := range p.listener.metadata {
+		svcCfg.Listener.Metadata[p.listener.metadata[i].k] = p.listener.metadata[i].v
+	}
 
 	svcCfg.Forwarder = nil
 	if len(p.forwarder.nodes) > 0 {

@@ -39,7 +39,7 @@ func NewPage(r *page.Router) page.Page {
 			ui_widget.NewNavButton(i18n.Hosts),
 			ui_widget.NewNavButton(i18n.Limiter),
 			ui_widget.NewNavButton(i18n.Observer),
-			ui_widget.NewNavButton(i18n.Logger),
+			ui_widget.NewNavButton(i18n.Recorder),
 		),
 		pages: []navPage{
 			{
@@ -81,6 +81,14 @@ func NewPage(r *page.Router) page.Page {
 			{
 				list: list.Limiter(r),
 				path: page.PageLimiter,
+			},
+			{
+				list: list.Observer(r),
+				path: page.PageObserver,
+			},
+			{
+				list: list.Recorder(r),
+				path: page.PageRecorder,
 			},
 		},
 	}

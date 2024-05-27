@@ -160,6 +160,8 @@ const (
 	DeleteHostMappings Key = "deleteHostMappings"
 	DeleteLimiter      Key = "deleteLimiter"
 	DeleteLimits       Key = "deleteLimits"
+	DeleteObserver     Key = "deleteObserver"
+	DeleteRecorder     Key = "deleteRecorder"
 
 	SelectorStrategy Key = "selectorStrategy"
 	SelectorRound    Key = "selectorRound"
@@ -178,7 +180,11 @@ const (
 	HTTPDataSource   Key = "httpDataSource"
 	HTTPURL          Key = "httpURL"
 	HTTPTimeout      Key = "httpTimeout"
+	TCPDataSource    Key = "tcpDataSource"
+	TCPAddr          Key = "tcpAddr"
+	TCPTimeout       Key = "tcpTimeout"
 	DataSourceReload Key = "dataSourceReload"
+	FileSep          Key = "fileSep"
 
 	PluginGRPC Key = "pluginGRPC"
 	PluginHTTP Key = "pluginHTTP"

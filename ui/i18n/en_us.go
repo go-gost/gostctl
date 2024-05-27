@@ -89,6 +89,8 @@ var en_US = map[Key]string{
 	DeleteHostMappings: "Delete host mappings?",
 	DeleteLimiter:      "Delete limiter?",
 	DeleteLimits:       "Delete limits?",
+	DeleteObserver:     "Delete observer?",
+	DeleteRecorder:     "Delete recorder?",
 
 	SelectorStrategy: "Strategy",
 	SelectorRound:    "Round-Robin",
@@ -107,7 +109,11 @@ var en_US = map[Key]string{
 	HTTPDataSource:   "HTTP",
 	HTTPURL:          "URL",
 	HTTPTimeout:      "Timeout",
-	DataSourceReload: "Realod period",
+	TCPDataSource:    "TCP",
+	TCPAddr:          "Address",
+	TCPTimeout:       "Timeout",
+	DataSourceReload: "Reload period",
+	FileSep:          "Sep",
 
 	PluginGRPC: "gRPC",
 	PluginHTTP: "HTTP",

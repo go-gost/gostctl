@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -34,8 +35,11 @@ type forwarder struct {
 	selectorMaxFails    component.TextField
 	selectorFailTimeout component.TextField
 
-	addNode   widget.Clickable
-	nodes     []node
+	nodeSelector ui_widget.Selector
+	addNode      widget.Clickable
+	nodeFolded   bool
+	nodes        []node
+
 	delDialog ui_widget.Dialog
 }
 
@@ -62,6 +66,7 @@ func newForwarder(service *servicePage) *forwarder {
 				return material.Body1(service.router.Theme, i18n.TimeSecond.Value()).Layout(gtx)
 			},
 		},
+		nodeSelector: ui_widget.Selector{Title: i18n.Nodes},
 
 		delDialog: ui_widget.Dialog{
 			Title: i18n.DeleteNode,
@@ -108,6 +113,10 @@ func (p *forwarder) init(cfg *api.ForwarderConfig) {
 
 		p.nodes = append(p.nodes, nd)
 	}
+
+	p.nodeSelector.Clear()
+	p.nodeSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.nodes))})
+	p.nodeFolded = true
 }
 
 func (p *forwarder) Layout(gtx page.C, th *page.T) page.D {
@@ -167,15 +176,22 @@ func (p *forwarder) Layout(gtx page.C, th *page.T) page.D {
 					Perm:     page.PermReadWrite,
 				})
 			}
-
 			return layout.Flex{
 				Alignment: layout.Middle,
 			}.Layout(gtx,
 				layout.Flexed(1, func(gtx page.C) page.D {
-					return layout.Inset{
-						Top:    16,
-						Bottom: 16,
-					}.Layout(gtx, material.Body1(th, i18n.Nodes.Value()).Layout)
+					gtx.Source = src
+
+					if p.nodeSelector.Clicked(gtx) {
+						p.nodeFolded = !p.nodeFolded
+					}
+					return p.nodeSelector.Layout(gtx, th)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if !p.service.edit {
+						return page.D{}
+					}
+					return layout.Spacer{Width: 8}.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx page.C) page.D {
 					if !p.service.edit {
@@ -190,6 +206,10 @@ func (p *forwarder) Layout(gtx page.C, th *page.T) page.D {
 			)
 		}),
 		layout.Rigid(func(gtx page.C) page.D {
+			if p.nodeFolded {
+				return page.D{}
+			}
+
 			gtx.Source = src
 			return p.layoutNodes(gtx, th)
 		}),
@@ -220,6 +240,9 @@ func (p *forwarder) layoutNodes(gtx page.C, th *page.T) page.D {
 					return
 				}
 				p.nodes = append(p.nodes[:i], p.nodes[i+1:]...)
+
+				p.nodeSelector.Clear()
+				p.nodeSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.nodes))})
 			}
 			p.service.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
 				return p.delDialog.Layout(gtx, th)
@@ -254,7 +277,9 @@ func (p *forwarder) layoutNodes(gtx page.C, th *page.T) page.D {
 									Axis: layout.Vertical,
 								}.Layout(gtx,
 									layout.Rigid(func(gtx page.C) page.D {
-										return material.Body1(th, name).Layout(gtx)
+										label := material.Body2(th, name)
+										label.Font.Weight = font.SemiBold
+										return label.Layout(gtx)
 									}),
 									layout.Rigid(layout.Spacer{Height: 4}.Layout),
 									layout.Rigid(func(gtx page.C) page.D {
@@ -263,6 +288,12 @@ func (p *forwarder) layoutNodes(gtx page.C, th *page.T) page.D {
 								)
 							})
 						})
+					}),
+					layout.Rigid(func(gtx page.C) page.D {
+						if !p.service.edit {
+							return page.D{}
+						}
+						return layout.Spacer{Width: 8}.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx page.C) page.D {
 						if !p.service.edit {
@@ -346,4 +377,7 @@ func (p *forwarder) nodeCallback(action page.Action, id string, value any) {
 			}
 		}
 	}
+
+	p.nodeSelector.Clear()
+	p.nodeSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.nodes))})
 }

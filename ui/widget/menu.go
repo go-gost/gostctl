@@ -58,10 +58,8 @@ func (p *Menu) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 					}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return layout.Inset{
-								Top:    8,
-								Bottom: 8,
-								Left:   24,
-								Right:  24,
+								Left:  24,
+								Right: 24,
 							}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 								return layout.Flex{
 									Alignment: layout.Middle,
@@ -89,13 +87,14 @@ func (p *Menu) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 							}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 								return p.list.Layout(gtx, len(p.Options), func(gtx layout.Context, index int) layout.Dimensions {
 									if p.Options[index].state.Clicked(gtx) {
-										if p.Multiple {
-											p.Options[index].Selected = !p.Options[index].Selected
-										} else {
+										p.Options[index].Selected = !p.Options[index].Selected
+
+										if !p.Multiple {
 											for i := range p.Options {
-												p.Options[i].Selected = false
+												if i != index {
+													p.Options[i].Selected = false
+												}
 											}
-											p.Options[index].Selected = true
 										}
 									}
 

@@ -21,8 +21,9 @@ import (
 	"github.com/go-gost/gostctl/ui/page/limiter"
 	"github.com/go-gost/gostctl/ui/page/limiter/limit"
 	"github.com/go-gost/gostctl/ui/page/matcher"
-	"github.com/go-gost/gostctl/ui/page/metadata"
 	"github.com/go-gost/gostctl/ui/page/node"
+	"github.com/go-gost/gostctl/ui/page/observer"
+	"github.com/go-gost/gostctl/ui/page/recorder"
 	"github.com/go-gost/gostctl/ui/page/resolver"
 	"github.com/go-gost/gostctl/ui/page/resolver/nameserver"
 	"github.com/go-gost/gostctl/ui/page/server"
@@ -64,7 +65,6 @@ func NewUI(w *app.Window) *UI {
 	router.Register(page.PageHop, hop.NewPage(router))
 	router.Register(page.PageNode, node.NewPage(router))
 	router.Register(page.PageForwarderNode, forwarder_node.NewPage(router))
-	router.Register(page.PageMetadata, metadata.NewPage(router))
 	router.Register(page.PageAuther, auther.NewPage(router))
 	router.Register(page.PageAutherAuths, auth.NewPage(router))
 	router.Register(page.PageMatcher, matcher.NewPage(router))
@@ -76,6 +76,8 @@ func NewUI(w *app.Window) *UI {
 	router.Register(page.PageHostMapping, mapping.NewPage(router))
 	router.Register(page.PageLimiter, limiter.NewPage(router))
 	router.Register(page.PageLimit, limit.NewPage(router))
+	router.Register(page.PageObserver, observer.NewPage(router))
+	router.Register(page.PageRecorder, recorder.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{

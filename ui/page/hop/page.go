@@ -474,7 +474,6 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
-						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
@@ -482,12 +481,14 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.PluginMode), i18n.Plugin.Value()).Layout(gtx)
 						}),
 					)
 				}),
+
+				layout.Rigid(layout.Spacer{Height: 16}.Layout),
 
 				layout.Rigid(material.Body1(th, i18n.Name.Value()).Layout),
 				layout.Rigid(func(gtx page.C) page.D {

@@ -1,4 +1,4 @@
-package bypass
+package recorder
 
 import (
 	"context"
@@ -19,10 +19,9 @@ import (
 	"github.com/go-gost/gostctl/ui/page"
 	"github.com/go-gost/gostctl/ui/theme"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
-	"github.com/google/uuid"
 )
 
-type bypassPage struct {
+type recorderPage struct {
 	router *page.Router
 
 	menu ui_widget.Menu
@@ -36,14 +35,9 @@ type bypassPage struct {
 
 	name component.TextField
 
-	whitelist       ui_widget.Switcher
-	matchers        []string
-	matcherSelector ui_widget.Selector
-
-	reload component.TextField
-
 	enableFileDataSource ui_widget.Switcher
 	filePath             component.TextField
+	fileSep              component.TextField
 
 	enableRedisDataSource ui_widget.Switcher
 	redisAddr             component.TextField
@@ -54,6 +48,10 @@ type bypassPage struct {
 	enableHTTPDataSource ui_widget.Switcher
 	httpURL              component.TextField
 	httpTimeout          component.TextField
+
+	enableTCPDataSource ui_widget.Switcher
+	tcpAddr             component.TextField
+	tcpTimeout          component.TextField
 
 	pluginType          ui_widget.Selector
 	pluginAddr          component.TextField
@@ -71,7 +69,7 @@ type bypassPage struct {
 }
 
 func NewPage(r *page.Router) page.Page {
-	p := &bypassPage{
+	p := &recorderPage{
 		router: r,
 
 		list: layout.List{
@@ -85,21 +83,14 @@ func NewPage(r *page.Router) page.Page {
 			},
 		},
 
-		whitelist:       ui_widget.Switcher{Title: i18n.Whitelist},
-		matcherSelector: ui_widget.Selector{Title: i18n.Rules},
-
-		reload: component.TextField{
-			Editor: widget.Editor{
-				SingleLine: true,
-				MaxLen:     16,
-				Filter:     "1234567890",
-			},
-			Suffix: func(gtx page.C) page.D {
-				return material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout(gtx)
-			},
-		},
 		enableFileDataSource: ui_widget.Switcher{Title: i18n.FileDataSource},
 		filePath: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		fileSep: component.TextField{
 			Editor: widget.Editor{
 				SingleLine: true,
 				MaxLen:     128,
@@ -151,6 +142,24 @@ func NewPage(r *page.Router) page.Page {
 			},
 		},
 
+		enableTCPDataSource: ui_widget.Switcher{Title: i18n.TCPDataSource},
+		tcpAddr: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     255,
+			},
+		},
+		tcpTimeout: component.TextField{
+			Editor: widget.Editor{
+				SingleLine: true,
+				MaxLen:     16,
+				Filter:     "1234567890",
+			},
+			Suffix: func(gtx page.C) page.D {
+				return material.Body1(r.Theme, i18n.TimeSecond.Value()).Layout(gtx)
+			},
+		},
+
 		pluginType: ui_widget.Selector{Title: i18n.Type},
 		pluginAddr: component.TextField{
 			Editor: widget.Editor{
@@ -167,13 +176,13 @@ func NewPage(r *page.Router) page.Page {
 			},
 		},
 
-		delDialog: ui_widget.Dialog{Title: i18n.DeleteBypass},
+		delDialog: ui_widget.Dialog{Title: i18n.DeleteRecorder},
 	}
 
 	return p
 }
 
-func (p *bypassPage) Init(opts ...page.PageOption) {
+func (p *recorderPage) Init(opts ...page.PageOption) {
 	var options page.PageOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -192,55 +201,53 @@ func (p *bypassPage) Init(opts ...page.PageOption) {
 
 	p.perm = options.Perm
 
-	bypass, _ := options.Value.(*api.BypassConfig)
+	recorder, _ := options.Value.(*api.RecorderConfig)
 
-	if bypass == nil {
+	if recorder == nil {
 		cfg := api.GetConfig()
-		for _, v := range cfg.Bypasses {
+		for _, v := range cfg.Recorders {
 			if v.Name == p.id {
-				bypass = v
+				recorder = v
 				break
 			}
 		}
-		if bypass == nil {
-			bypass = &api.BypassConfig{}
+		if recorder == nil {
+			recorder = &api.RecorderConfig{}
 		}
 	}
 
 	p.mode.Value = string(page.BasicMode)
-	if bypass.File != nil || bypass.HTTP != nil || bypass.Redis != nil {
-		p.mode.Value = string(page.AdvancedMode)
-	}
-
-	p.name.SetText(bypass.Name)
-	p.whitelist.SetValue(bypass.Whitelist)
-	p.matchers = bypass.Matchers
-	p.matcherSelector.Clear()
-	p.matcherSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.matchers))})
+	p.name.SetText(recorder.Name)
 
 	{
-		p.reload.SetText(strconv.Itoa(int(bypass.Reload.Seconds())))
-
 		p.enableFileDataSource.SetValue(false)
-		if bypass.File != nil {
+		if recorder.File != nil {
 			p.enableFileDataSource.SetValue(true)
-			p.filePath.SetText(bypass.File.Path)
+			p.filePath.SetText(recorder.File.Path)
+			p.fileSep.SetText(recorder.File.Sep)
 		}
 
 		p.enableRedisDataSource.SetValue(false)
-		if bypass.Redis != nil {
+		if recorder.Redis != nil {
 			p.enableRedisDataSource.SetValue(true)
-			p.redisAddr.SetText(bypass.Redis.Addr)
-			p.redisDB.SetText(strconv.Itoa(bypass.Redis.DB))
-			p.redisPassword.SetText(bypass.Redis.Password)
-			p.redisKey.SetText(bypass.Redis.Key)
+			p.redisAddr.SetText(recorder.Redis.Addr)
+			p.redisDB.SetText(strconv.Itoa(recorder.Redis.DB))
+			p.redisPassword.SetText(recorder.Redis.Password)
+			p.redisKey.SetText(recorder.Redis.Key)
 		}
 
 		p.enableHTTPDataSource.SetValue(false)
-		if bypass.HTTP != nil {
+		if recorder.HTTP != nil {
 			p.enableHTTPDataSource.SetValue(true)
-			p.httpURL.SetText(bypass.HTTP.URL)
-			p.httpTimeout.SetText(strconv.Itoa(int(bypass.HTTP.Timeout.Seconds())))
+			p.httpURL.SetText(recorder.HTTP.URL)
+			p.httpTimeout.SetText(strconv.Itoa(int(recorder.HTTP.Timeout.Seconds())))
+		}
+
+		p.enableTCPDataSource.SetValue(false)
+		if recorder.TCP != nil {
+			p.enableTCPDataSource.SetValue(true)
+			p.tcpAddr.SetText(recorder.TCP.Addr)
+			p.tcpTimeout.SetText(strconv.Itoa(int(recorder.TCP.Timeout.Seconds())))
 		}
 	}
 
@@ -251,26 +258,26 @@ func (p *bypassPage) Init(opts ...page.PageOption) {
 		p.pluginTLSSecure.SetValue(false)
 		p.pluginTLSServerName.Clear()
 
-		if bypass.Plugin != nil {
+		if recorder.Plugin != nil {
 			p.mode.Value = string(page.PluginMode)
 			for i := range page.PluginTypeOptions {
-				if page.PluginTypeOptions[i].Value == bypass.Plugin.Type {
+				if page.PluginTypeOptions[i].Value == recorder.Plugin.Type {
 					p.pluginType.Select(ui_widget.SelectorItem{Key: page.PluginTypeOptions[i].Key, Value: page.PluginTypeOptions[i].Value})
 					break
 				}
 			}
-			p.pluginAddr.SetText(bypass.Plugin.Addr)
+			p.pluginAddr.SetText(recorder.Plugin.Addr)
 
-			if bypass.Plugin.TLS != nil {
+			if recorder.Plugin.TLS != nil {
 				p.pluginEnableTLS.SetValue(true)
-				p.pluginTLSSecure.SetValue(bypass.Plugin.TLS.Secure)
-				p.pluginTLSServerName.SetText(bypass.Plugin.TLS.ServerName)
+				p.pluginTLSSecure.SetValue(recorder.Plugin.TLS.Secure)
+				p.pluginTLSServerName.SetText(recorder.Plugin.TLS.ServerName)
 			}
 		}
 	}
 }
 
-func (p *bypassPage) Layout(gtx page.C) page.D {
+func (p *recorderPage) Layout(gtx page.C) page.D {
 	if p.btnBack.Clicked(gtx) {
 		p.router.Back()
 	}
@@ -316,7 +323,7 @@ func (p *bypassPage) Layout(gtx page.C) page.D {
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Flexed(1, func(gtx page.C) page.D {
-						title := material.H6(th, i18n.Bypass.Value())
+						title := material.H6(th, i18n.Recorder.Value())
 						return title.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx page.C) page.D {
@@ -360,7 +367,7 @@ func (p *bypassPage) Layout(gtx page.C) page.D {
 	)
 }
 
-func (p *bypassPage) layout(gtx page.C, th *page.T) page.D {
+func (p *recorderPage) layout(gtx page.C, th *page.T) page.D {
 	src := gtx.Source
 
 	if !p.edit {
@@ -386,10 +393,6 @@ func (p *bypassPage) layout(gtx page.C, th *page.T) page.D {
 					}.Layout(gtx,
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
-						}),
-						layout.Rigid(layout.Spacer{Width: 8}.Layout),
-						layout.Rigid(func(gtx page.C) page.D {
-							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
 						layout.Rigid(layout.Spacer{Width: 8}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
@@ -464,34 +467,6 @@ func (p *bypassPage) layout(gtx page.C, th *page.T) page.D {
 					if p.mode.Value == string(page.PluginMode) {
 						return page.D{}
 					}
-					return p.whitelist.Layout(gtx, th)
-				}),
-
-				layout.Rigid(func(gtx page.C) page.D {
-					if p.mode.Value == string(page.PluginMode) {
-						return page.D{}
-					}
-					gtx.Source = src
-
-					if p.matcherSelector.Clicked(gtx) {
-						perm := page.PermRead
-						if p.edit {
-							perm = page.PermWrite | page.PermDelete
-						}
-						p.router.Goto(page.Route{
-							Path:     page.PageMatcher,
-							ID:       uuid.New().String(),
-							Value:    p.matchers,
-							Callback: p.callback,
-							Perm:     perm,
-						})
-					}
-					return p.matcherSelector.Layout(gtx, th)
-				}),
-				layout.Rigid(func(gtx page.C) page.D {
-					if p.mode.Value != string(page.AdvancedMode) {
-						return page.D{}
-					}
 					return p.layoutDataSource(gtx, th)
 				}),
 			)
@@ -499,27 +474,10 @@ func (p *bypassPage) layout(gtx page.C, th *page.T) page.D {
 	})
 }
 
-func (p *bypassPage) layoutDataSource(gtx page.C, th *page.T) page.D {
-	if p.mode.Value != string(page.AdvancedMode) {
-		return page.D{}
-	}
-
+func (p *recorderPage) layoutDataSource(gtx page.C, th *page.T) page.D {
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
-		layout.Rigid(func(gtx page.C) page.D {
-			return layout.Inset{
-				Top:    16,
-				Bottom: 16,
-			}.Layout(gtx, material.H6(th, i18n.DataSource.Value()).Layout)
-		}),
-
-		layout.Rigid(material.Body1(th, i18n.DataSourceReload.Value()).Layout),
-		layout.Rigid(func(gtx page.C) page.D {
-			return p.reload.Layout(gtx, th, "")
-		}),
-		layout.Rigid(layout.Spacer{Height: 8}.Layout),
-
 		layout.Rigid(func(gtx page.C) page.D {
 			return p.enableFileDataSource.Layout(gtx, th)
 		}),
@@ -534,6 +492,12 @@ func (p *bypassPage) layoutDataSource(gtx page.C, th *page.T) page.D {
 					layout.Rigid(material.Body1(th, i18n.FilePath.Value()).Layout),
 					layout.Rigid(func(gtx page.C) page.D {
 						return p.filePath.Layout(gtx, th, "")
+					}),
+
+					layout.Rigid(layout.Spacer{Height: 8}.Layout),
+					layout.Rigid(material.Body1(th, i18n.FileSep.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.fileSep.Layout(gtx, th, "")
 					}),
 				)
 			})
@@ -600,10 +564,35 @@ func (p *bypassPage) layoutDataSource(gtx page.C, th *page.T) page.D {
 				)
 			})
 		}),
+
+		layout.Rigid(func(gtx page.C) page.D {
+			return p.enableTCPDataSource.Layout(gtx, th)
+		}),
+		layout.Rigid(func(gtx page.C) page.D {
+			if !p.enableTCPDataSource.Value() {
+				return page.D{}
+			}
+			return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
+				return layout.Flex{
+					Axis: layout.Vertical,
+				}.Layout(gtx,
+					layout.Rigid(material.Body1(th, i18n.TCPAddr.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.tcpAddr.Layout(gtx, th, "")
+					}),
+					layout.Rigid(layout.Spacer{Height: 8}.Layout),
+
+					layout.Rigid(material.Body1(th, i18n.TCPTimeout.Value()).Layout),
+					layout.Rigid(func(gtx page.C) page.D {
+						return p.tcpTimeout.Layout(gtx, th, "")
+					}),
+				)
+			})
+		}),
 	)
 }
 
-func (p *bypassPage) showPluginTypeMenu(gtx page.C) {
+func (p *recorderPage) showPluginTypeMenu(gtx page.C) {
 	for i := range page.PluginTypeOptions {
 		page.PluginTypeOptions[i].Selected = p.pluginType.AnyValue(page.PluginTypeOptions[i].Value)
 	}
@@ -631,35 +620,18 @@ func (p *bypassPage) showPluginTypeMenu(gtx page.C) {
 	})
 }
 
-func (p *bypassPage) callback(action page.Action, id string, value any) {
-	if id == "" {
-		return
-	}
-
-	switch action {
-	case page.ActionUpdate:
-		p.matchers, _ = value.([]string)
-
-	case page.ActionDelete:
-		p.matchers = nil
-	}
-
-	p.matcherSelector.Clear()
-	p.matcherSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.matchers))})
-}
-
-func (p *bypassPage) save() bool {
+func (p *recorderPage) save() bool {
 	cfg := p.generateConfig()
 
 	var err error
 	if p.id == "" {
 		err = runner.Exec(context.Background(),
-			task.CreateBypass(cfg),
+			task.CreateRecorder(cfg),
 			runner.WithCancel(true),
 		)
 	} else {
 		err = runner.Exec(context.Background(),
-			task.UpdateBypass(cfg),
+			task.UpdateRecorder(cfg),
 			runner.WithCancel(true),
 		)
 	}
@@ -668,11 +640,9 @@ func (p *bypassPage) save() bool {
 	return err == nil
 }
 
-func (p *bypassPage) generateConfig() *api.BypassConfig {
-	cfg := &api.BypassConfig{
-		Name:      strings.TrimSpace(p.name.Text()),
-		Matchers:  p.matchers,
-		Whitelist: p.whitelist.Value(),
+func (p *recorderPage) generateConfig() *api.RecorderConfig {
+	cfg := &api.RecorderConfig{
+		Name: strings.TrimSpace(p.name.Text()),
 	}
 	if p.mode.Value == string(page.PluginMode) && p.pluginType.Value() != "" {
 		cfg.Plugin = &api.PluginConfig{
@@ -688,18 +658,15 @@ func (p *bypassPage) generateConfig() *api.BypassConfig {
 		return cfg
 	}
 
-	reload, _ := strconv.Atoi(p.reload.Text())
-	cfg.Reload = time.Duration(reload) * time.Second
-
 	if p.enableFileDataSource.Value() {
-		cfg.File = &api.FileLoader{
+		cfg.File = &api.FileRecorder{
 			Path: strings.TrimSpace(p.filePath.Text()),
 		}
 	}
 
 	if p.enableRedisDataSource.Value() {
 		db, _ := strconv.Atoi(p.redisDB.Text())
-		cfg.Redis = &api.RedisLoader{
+		cfg.Redis = &api.RedisRecorder{
 			Addr:     strings.TrimSpace(p.redisAddr.Text()),
 			DB:       db,
 			Password: strings.TrimSpace(p.redisPassword.Text()),
@@ -709,8 +676,16 @@ func (p *bypassPage) generateConfig() *api.BypassConfig {
 
 	if p.enableHTTPDataSource.Value() {
 		timeout, _ := strconv.Atoi(p.httpTimeout.Text())
-		cfg.HTTP = &api.HTTPLoader{
+		cfg.HTTP = &api.HTTPRecorder{
 			URL:     strings.TrimSpace(p.httpURL.Text()),
+			Timeout: time.Duration(timeout) * time.Second,
+		}
+	}
+
+	if p.enableTCPDataSource.Value() {
+		timeout, _ := strconv.Atoi(p.tcpTimeout.Text())
+		cfg.TCP = &api.TCPRecorder{
+			Addr:    strings.TrimSpace(p.tcpAddr.Text()),
 			Timeout: time.Duration(timeout) * time.Second,
 		}
 	}
@@ -718,9 +693,9 @@ func (p *bypassPage) generateConfig() *api.BypassConfig {
 	return cfg
 }
 
-func (p *bypassPage) delete() {
+func (p *recorderPage) delete() {
 	runner.Exec(context.Background(),
-		task.DeleteBypass(p.id),
+		task.DeleteRecorder(p.id),
 		runner.WithCancel(true),
 	)
 	util.RestartGetConfigTask()
