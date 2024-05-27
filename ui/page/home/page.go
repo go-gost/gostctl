@@ -4,6 +4,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/icons"
 	"github.com/go-gost/gostctl/ui/page"
@@ -17,6 +18,7 @@ type navPage struct {
 }
 
 type homePage struct {
+	readonly    bool
 	router      *page.Router
 	nav         *ui_widget.Nav
 	pages       []navPage
@@ -95,6 +97,9 @@ func NewPage(r *page.Router) page.Page {
 }
 
 func (p *homePage) Init(opts ...page.PageOption) {
+	if server := config.CurrentServer(); server != nil {
+		p.readonly = server.Readonly
+	}
 }
 
 func (p *homePage) Layout(gtx page.C) page.D {
@@ -176,6 +181,10 @@ func (p *homePage) Layout(gtx page.C) page.D {
 			)
 		}),
 		layout.Stacked(func(gtx page.C) page.D {
+			if p.nav.Current() > 0 && p.readonly {
+				return page.D{}
+			}
+
 			return layout.UniformInset(16).Layout(gtx, func(gtx page.C) page.D {
 				btn := material.IconButton(th, &p.btnAdd, icons.IconAdd, "Add")
 				btn.Inset = layout.UniformInset(16)

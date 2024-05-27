@@ -99,6 +99,7 @@ const (
 	Password  Key = "password"
 
 	AutoSave Key = "autoSave"
+	Readonly Key = "readonly"
 
 	Basic      Key = "basic"
 	Advanced   Key = "advanced"
@@ -142,6 +143,7 @@ const (
 	Only           Key = "only"
 	ClientIP       Key = "clientIP"
 	Limits         Key = "limits"
+	Record         Key = "record"
 
 	DeleteServer       Key = "deleteServer"
 	DeleteService      Key = "deleteService"
@@ -162,6 +164,7 @@ const (
 	DeleteLimits       Key = "deleteLimits"
 	DeleteObserver     Key = "deleteObserver"
 	DeleteRecorder     Key = "deleteRecorder"
+	DeleteRecord       Key = "deleteRecord"
 
 	SelectorStrategy Key = "selectorStrategy"
 	SelectorRound    Key = "selectorRound"

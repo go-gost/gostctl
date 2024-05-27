@@ -29,6 +29,7 @@ import (
 	"github.com/go-gost/gostctl/ui/page/server"
 	"github.com/go-gost/gostctl/ui/page/service"
 	forwarder_node "github.com/go-gost/gostctl/ui/page/service/node"
+	"github.com/go-gost/gostctl/ui/page/service/record"
 	"github.com/go-gost/gostctl/ui/page/settings"
 	"github.com/go-gost/gostctl/ui/theme"
 )
@@ -41,7 +42,7 @@ type UI struct {
 	router *page.Router
 }
 
-func NewUI(w *app.Window) *UI {
+func NewUI() *UI {
 	if settings := config.Get().Settings; settings != nil {
 		switch settings.Theme {
 		case theme.Dark:
@@ -57,10 +58,18 @@ func NewUI(w *app.Window) *UI {
 	// th.Shaper = text.NewShaper(text.WithCollection(fonts.Collection()))
 	th.Palette = theme.Current().Material
 
+	w := &app.Window{}
+	w.Option(
+		app.Title("GOST"),
+		app.MinSize(800, 600),
+		app.StatusColor(th.Bg),
+	)
+
 	router := page.NewRouter(w, th)
 	router.Register(page.PageHome, home.NewPage(router))
 	router.Register(page.PageServer, server.NewPage(router))
 	router.Register(page.PageService, service.NewPage(router))
+	router.Register(page.PageServiceRecord, record.NewPage(router))
 	router.Register(page.PageChain, chain.NewPage(router))
 	router.Register(page.PageHop, hop.NewPage(router))
 	router.Register(page.PageNode, node.NewPage(router))

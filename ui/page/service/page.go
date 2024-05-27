@@ -14,6 +14,7 @@ import (
 	"github.com/go-gost/gostctl/api/runner"
 	"github.com/go-gost/gostctl/api/runner/task"
 	"github.com/go-gost/gostctl/api/util"
+	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/icons"
 	"github.com/go-gost/gostctl/ui/page"
@@ -21,6 +22,13 @@ import (
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
 	"github.com/google/uuid"
 )
+
+type record struct {
+	id     string
+	cfg    *api.RecorderObject
+	clk    widget.Clickable
+	delete widget.Clickable
+}
 
 type metadata struct {
 	k      string
@@ -30,6 +38,8 @@ type metadata struct {
 }
 
 type servicePage struct {
+	readonly bool
+
 	router *page.Router
 
 	menu ui_widget.Menu
@@ -56,8 +66,10 @@ type servicePage struct {
 	limiter    ui_widget.Selector
 	observer   ui_widget.Selector
 
-	recorders        []*api.RecorderObject
+	records          []record
 	recorderSelector ui_widget.Selector
+	recordFolded     bool
+	recordAdd        widget.Clickable
 
 	id   string
 	perm page.Perm
@@ -73,6 +85,7 @@ type servicePage struct {
 
 	delDialog         ui_widget.Dialog
 	delMetadataDialog ui_widget.Dialog
+	delRecordDialog   ui_widget.Dialog
 
 	handler   *handler
 	listener  *listener
@@ -101,6 +114,7 @@ func NewPage(r *page.Router) page.Page {
 		},
 		delDialog:         ui_widget.Dialog{Title: i18n.DeleteService},
 		delMetadataDialog: ui_widget.Dialog{Title: i18n.DeleteMetadata},
+		delRecordDialog:   ui_widget.Dialog{Title: i18n.DeleteMetadata},
 
 		// stats:           ui_widget.Switcher{Title: "Stats"},
 		/*
@@ -150,6 +164,10 @@ func NewPage(r *page.Router) page.Page {
 }
 
 func (p *servicePage) Init(opts ...page.PageOption) {
+	if server := config.CurrentServer(); server != nil {
+		p.readonly = server.Readonly
+	}
+
 	var options page.PageOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -241,9 +259,22 @@ func (p *servicePage) Init(opts ...page.PageOption) {
 		p.observer.Select(ui_widget.SelectorItem{Value: service.Observer})
 	}
 
-	p.recorders = service.Recorders
+	p.records = nil
+	for _, v := range service.Recorders {
+		if v == nil {
+			continue
+		}
+
+		record := record{
+			id:  uuid.New().String(),
+			cfg: v,
+		}
+
+		p.records = append(p.records, record)
+	}
 	p.recorderSelector.Clear()
-	p.recorderSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.recorders))})
+	p.recorderSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.records))})
+	p.recordFolded = true
 
 	p.metadata = nil
 	md := api.NewMetadata(service.Metadata)
@@ -320,7 +351,7 @@ func (p *servicePage) Layout(gtx page.C) page.D {
 						return title.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx page.C) page.D {
-						if p.perm&page.PermDelete == 0 || p.create {
+						if p.readonly || p.perm&page.PermDelete == 0 || p.create {
 							return page.D{}
 						}
 						btn := material.IconButton(th, &p.btnDelete, icons.IconDelete, "Delete")
@@ -330,7 +361,7 @@ func (p *servicePage) Layout(gtx page.C) page.D {
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Rigid(func(gtx page.C) page.D {
-						if p.perm&page.PermWrite == 0 {
+						if p.readonly || p.perm&page.PermWrite == 0 {
 							return page.D{}
 						}
 						if p.edit {
@@ -473,22 +504,50 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 						}),
 
 						layout.Rigid(func(gtx page.C) page.D {
-							gtx.Source = src
-
-							if p.recorderSelector.Clicked(gtx) {
-								perm := page.PermRead
-								if p.edit {
-									perm = page.PermWrite | page.PermDelete
-								}
+							if p.recordAdd.Clicked(gtx) {
 								p.router.Goto(page.Route{
-									Path:     page.PageServiceRecorder,
-									ID:       uuid.New().String(),
-									Value:    p.recorders,
-									Callback: p.recorderCallback,
-									Perm:     perm,
+									Path:     page.PageServiceRecord,
+									Callback: p.recordCallback,
+									Perm:     page.PermReadWrite,
 								})
 							}
-							return p.recorderSelector.Layout(gtx, th)
+
+							return layout.Flex{
+								Alignment: layout.Middle,
+							}.Layout(gtx,
+								layout.Flexed(1, func(gtx page.C) page.D {
+									gtx.Source = src
+
+									if p.recorderSelector.Clicked(gtx) {
+										p.recordFolded = !p.recordFolded
+									}
+									return p.recorderSelector.Layout(gtx, th)
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									if !p.edit {
+										return page.D{}
+									}
+									return layout.Spacer{Width: 8}.Layout(gtx)
+								}),
+								layout.Rigid(func(gtx page.C) page.D {
+									if !p.edit {
+										return page.D{}
+									}
+									btn := material.IconButton(th, &p.recordAdd, icons.IconAdd, "Add")
+									btn.Background = theme.Current().ContentSurfaceBg
+									btn.Color = th.Fg
+									// btn.Inset = layout.UniformInset(8)
+									return btn.Layout(gtx)
+								}),
+							)
+						}),
+						layout.Rigid(func(gtx page.C) page.D {
+							if p.recordFolded {
+								return page.D{}
+							}
+
+							gtx.Source = src
+							return p.layoutRecorder(gtx, th)
 						}),
 
 						layout.Rigid(func(gtx page.C) page.D {
@@ -583,6 +642,100 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 			)
 		})
 	})
+}
+
+func (p *servicePage) layoutRecorder(gtx page.C, th *page.T) page.D {
+	for i := range p.records {
+		if p.records[i].clk.Clicked(gtx) {
+			perm := page.PermRead
+			if p.edit {
+				perm = page.PermReadWrite
+			}
+			p.router.Goto(page.Route{
+				Path:     page.PageServiceRecord,
+				ID:       p.records[i].id,
+				Value:    p.records[i].cfg,
+				Callback: p.recordCallback,
+				Perm:     perm,
+			})
+			break
+		}
+
+		if p.records[i].delete.Clicked(gtx) {
+			p.delRecordDialog.OnClick = func(ok bool) {
+				p.router.HideModal(gtx)
+				if !ok {
+					return
+				}
+				p.records = append(p.records[:i], p.records[i+1:]...)
+
+				p.recorderSelector.Clear()
+				p.recorderSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.records))})
+			}
+			p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {
+				return p.delRecordDialog.Layout(gtx, th)
+			})
+			break
+		}
+	}
+
+	var children []layout.FlexChild
+	for i := range p.records {
+		ro := &p.records[i]
+
+		children = append(children,
+			layout.Rigid(func(gtx page.C) page.D {
+				return layout.Flex{
+					Alignment: layout.Middle,
+				}.Layout(gtx,
+					layout.Flexed(1, func(gtx page.C) page.D {
+						return material.Clickable(gtx, &ro.clk, func(gtx page.C) page.D {
+							return layout.Inset{
+								Top:    8,
+								Bottom: 8,
+								Left:   8,
+								Right:  8,
+							}.Layout(gtx, func(gtx page.C) page.D {
+								return layout.Flex{
+									Axis: layout.Vertical,
+								}.Layout(gtx,
+									layout.Rigid(func(gtx page.C) page.D {
+										label := material.Body2(th, ro.cfg.Name)
+										label.Font.Weight = font.SemiBold
+										return label.Layout(gtx)
+									}),
+									layout.Rigid(layout.Spacer{Height: 4}.Layout),
+									layout.Rigid(func(gtx page.C) page.D {
+										return material.Body2(th, ro.cfg.Record).Layout(gtx)
+									}),
+								)
+							})
+						})
+					}),
+					layout.Rigid(func(gtx page.C) page.D {
+						if !p.edit {
+							return page.D{}
+						}
+						return layout.Spacer{Width: 8}.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx page.C) page.D {
+						if !p.edit {
+							return page.D{}
+						}
+						btn := material.IconButton(th, &ro.delete, icons.IconDelete, "delete")
+						btn.Background = theme.Current().ContentSurfaceBg
+						btn.Color = th.Fg
+						// btn.Inset = layout.UniformInset(8)
+						return btn.Layout(gtx)
+					}),
+				)
+			}),
+		)
+	}
+
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(gtx, children...)
 }
 
 func (p *servicePage) layoutMetadata(gtx page.C, th *page.T) page.D {
@@ -986,21 +1139,44 @@ func (p *servicePage) showLoggerMenu(gtx page.C) {
 }
 */
 
-func (p *servicePage) recorderCallback(action page.Action, id string, value any) {
+func (p *servicePage) recordCallback(action page.Action, id string, value any) {
 	if id == "" {
 		return
 	}
 
 	switch action {
+	case page.ActionCreate:
+		cfg, _ := value.(*api.RecorderObject)
+		if cfg == nil {
+			return
+		}
+		p.records = append(p.records, record{
+			id:  id,
+			cfg: cfg,
+		})
 	case page.ActionUpdate:
-		p.recorders, _ = value.([]*api.RecorderObject)
+		cfg, _ := value.(*api.RecorderObject)
+		if cfg == nil {
+			return
+		}
+		for i := range p.records {
+			if p.records[i].id == id {
+				p.records[i].cfg = cfg
+				break
+			}
+		}
 
 	case page.ActionDelete:
-		p.recorders = nil
+		for i := range p.records {
+			if p.records[i].id == id {
+				p.records = append(p.records[:i], p.records[i+1:]...)
+				break
+			}
+		}
 	}
 
 	p.recorderSelector.Clear()
-	p.recorderSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.recorders))})
+	p.recorderSelector.Select(ui_widget.SelectorItem{Value: strconv.Itoa(len(p.records))})
 }
 
 func (p *servicePage) save() bool {
@@ -1082,7 +1258,11 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 			}
 		}
 	*/
-	svcCfg.Recorders = p.recorders
+
+	svcCfg.Recorders = nil
+	for i := range p.records {
+		svcCfg.Recorders = append(svcCfg.Recorders, p.records[i].cfg)
+	}
 
 	svcCfg.Metadata = make(map[string]any)
 	svcCfg.Metadata["enablestats"] = true

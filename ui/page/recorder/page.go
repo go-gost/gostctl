@@ -14,6 +14,7 @@ import (
 	"github.com/go-gost/gostctl/api/runner"
 	"github.com/go-gost/gostctl/api/runner/task"
 	"github.com/go-gost/gostctl/api/util"
+	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/icons"
 	"github.com/go-gost/gostctl/ui/page"
@@ -22,7 +23,8 @@ import (
 )
 
 type recorderPage struct {
-	router *page.Router
+	readonly bool
+	router   *page.Router
 
 	menu ui_widget.Menu
 	mode widget.Enum
@@ -183,6 +185,10 @@ func NewPage(r *page.Router) page.Page {
 }
 
 func (p *recorderPage) Init(opts ...page.PageOption) {
+	if server := config.CurrentServer(); server != nil {
+		p.readonly = server.Readonly
+	}
+
 	var options page.PageOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -327,7 +333,7 @@ func (p *recorderPage) Layout(gtx page.C) page.D {
 						return title.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx page.C) page.D {
-						if p.perm&page.PermDelete == 0 || p.create {
+						if p.readonly || p.perm&page.PermDelete == 0 || p.create {
 							return page.D{}
 						}
 
@@ -338,7 +344,7 @@ func (p *recorderPage) Layout(gtx page.C) page.D {
 					}),
 					layout.Rigid(layout.Spacer{Width: 8}.Layout),
 					layout.Rigid(func(gtx page.C) page.D {
-						if p.perm&page.PermWrite == 0 {
+						if p.readonly || p.perm&page.PermWrite == 0 {
 							return page.D{}
 						}
 

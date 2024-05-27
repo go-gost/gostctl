@@ -348,6 +348,8 @@ func (p *nodePage) layout(gtx page.C, th *page.T) page.D {
 					)
 				}),
 
+				layout.Rigid(layout.Spacer{Height: 16}.Layout),
+
 				layout.Rigid(material.Body1(th, i18n.Name.Value()).Layout),
 				layout.Rigid(func(gtx page.C) page.D {
 					return p.name.Layout(gtx, th, "")
@@ -499,7 +501,13 @@ func (p *nodePage) showBypassMenu(gtx page.C) {
 			}
 		}
 	}
-	p.menu.OnAdd = func() {}
+	p.menu.OnAdd = func() {
+		p.router.Goto(page.Route{
+			Path: page.PageBypass,
+			Perm: page.PermReadWrite,
+		})
+		p.router.HideModal(gtx)
+	}
 	p.menu.Multiple = true
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *page.T) page.D {

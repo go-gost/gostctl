@@ -292,6 +292,7 @@ func (p *settingsPage) showThemeMenu(gtx layout.Context) {
 		default:
 			theme.UseLight()
 		}
+		p.router.Emit(page.Event{ID: page.EventThemeChanged})
 	}
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *material.Theme) page.D {

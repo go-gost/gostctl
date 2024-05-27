@@ -132,6 +132,19 @@ func Get() *Config {
 	return cfg
 }
 
+func CurrentServer() *Server {
+	cfg := Get()
+	if len(cfg.Servers) == 0 {
+		return nil
+	}
+
+	if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
+		return cfg.Servers[cfg.CurrentServer]
+	}
+
+	return cfg.Servers[0]
+}
+
 func Set(c *Config) {
 	if c == nil {
 		c = &Config{}
@@ -164,6 +177,7 @@ type Server struct {
 	Interval time.Duration `yaml:",omitempty"`
 	Timeout  time.Duration `yaml:",omitempty"`
 	AutoSave string        `yaml:",omitempty"`
+	Readonly bool          `yaml:",omitempty"`
 	state    ServerState
 	events   []ServerEvent
 	mu       sync.RWMutex

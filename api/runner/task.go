@@ -7,52 +7,52 @@ import (
 type TaskID string
 
 const (
-	TaskGetConfig  TaskID = "api.config.get"
-	TaskSaveConfig TaskID = "api.config.save"
+	TaskGetConfig  TaskID = "task.api.config.get"
+	TaskSaveConfig TaskID = "task.api.config.save"
 
-	TaskCreateService TaskID = "api.service.create"
-	TaskUpdateService TaskID = "api.service.update"
-	TaskDeleteService TaskID = "api.service.delete"
+	TaskCreateService TaskID = "task.api.service.create"
+	TaskUpdateService TaskID = "task.api.service.update"
+	TaskDeleteService TaskID = "task.api.service.delete"
 
-	TaskCreateChain TaskID = "api.chain.create"
-	TaskUpdateChain TaskID = "api.chain.update"
-	TaskDeleteChain TaskID = "api.chain.delete"
+	TaskCreateChain TaskID = "task.api.chain.create"
+	TaskUpdateChain TaskID = "task.api.chain.update"
+	TaskDeleteChain TaskID = "task.api.chain.delete"
 
-	TaskCreateHop TaskID = "api.hop.create"
-	TaskUpdateHop TaskID = "api.hop.update"
-	TaskDeleteHop TaskID = "api.hop.delete"
+	TaskCreateHop TaskID = "task.api.hop.create"
+	TaskUpdateHop TaskID = "task.api.hop.update"
+	TaskDeleteHop TaskID = "task.api.hop.delete"
 
-	TaskCreateAuther TaskID = "api.auther.create"
-	TaskUpdateAuther TaskID = "api.auther.update"
-	TaskDeleteAuther TaskID = "api.auther.delete"
+	TaskCreateAuther TaskID = "task.api.auther.create"
+	TaskUpdateAuther TaskID = "task.api.auther.update"
+	TaskDeleteAuther TaskID = "task.api.auther.delete"
 
-	TaskCreateAdmission TaskID = "api.admission.create"
-	TaskUpdateAdmission TaskID = "api.admission.update"
-	TaskDeleteAdmission TaskID = "api.admission.delete"
+	TaskCreateAdmission TaskID = "task.api.admission.create"
+	TaskUpdateAdmission TaskID = "task.api.admission.update"
+	TaskDeleteAdmission TaskID = "task.api.admission.delete"
 
-	TaskCreateBypass TaskID = "api.bypass.create"
-	TaskUpdateBypass TaskID = "api.bypass.update"
-	TaskDeleteBypass TaskID = "api.bypass.delete"
+	TaskCreateBypass TaskID = "task.api.bypass.create"
+	TaskUpdateBypass TaskID = "task.api.bypass.update"
+	TaskDeleteBypass TaskID = "task.api.bypass.delete"
 
-	TaskCreateResolver TaskID = "api.resolver.create"
-	TaskUpdateResolver TaskID = "api.resolver.update"
-	TaskDeleteResolver TaskID = "api.resolver.delete"
+	TaskCreateResolver TaskID = "task.api.resolver.create"
+	TaskUpdateResolver TaskID = "task.api.resolver.update"
+	TaskDeleteResolver TaskID = "task.api.resolver.delete"
 
-	TaskCreateHosts TaskID = "api.hosts.create"
-	TaskUpdateHosts TaskID = "api.hosts.update"
-	TaskDeleteHosts TaskID = "api.hosts.delete"
+	TaskCreateHosts TaskID = "task.api.hosts.create"
+	TaskUpdateHosts TaskID = "task.api.hosts.update"
+	TaskDeleteHosts TaskID = "task.api.hosts.delete"
 
-	TaskCreateLimiter TaskID = "api.limiter.create"
-	TaskUpdateLimiter TaskID = "api.limiter.update"
-	TaskDeleteLimiter TaskID = "api.limiter.delete"
+	TaskCreateLimiter TaskID = "task.api.limiter.create"
+	TaskUpdateLimiter TaskID = "task.api.limiter.update"
+	TaskDeleteLimiter TaskID = "task.api.limiter.delete"
 
-	TaskCreateObserver TaskID = "api.observer.create"
-	TaskUpdateObserver TaskID = "api.observer.update"
-	TaskDeleteObserver TaskID = "api.observer.delete"
+	TaskCreateObserver TaskID = "task.api.observer.create"
+	TaskUpdateObserver TaskID = "task.api.observer.update"
+	TaskDeleteObserver TaskID = "task.api.observer.delete"
 
-	TaskCreateRecorder TaskID = "api.recorder.create"
-	TaskUpdateRecorder TaskID = "api.recorder.update"
-	TaskDeleteRecorder TaskID = "api.recorder.delete"
+	TaskCreateRecorder TaskID = "task.api.recorder.create"
+	TaskUpdateRecorder TaskID = "task.api.recorder.update"
+	TaskDeleteRecorder TaskID = "task.api.recorder.delete"
 )
 
 type Task interface {

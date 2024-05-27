@@ -15,11 +15,7 @@ import (
 func RestartGetConfigTask() {
 	api.SetConfig(&api.Config{})
 
-	var server *config.Server
-	cfg := config.Get()
-	if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
-		server = cfg.Servers[cfg.CurrentServer]
-	}
+	server := config.CurrentServer()
 	if server == nil {
 		return
 	}

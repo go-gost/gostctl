@@ -15,6 +15,8 @@ import (
 	"github.com/go-gost/gostctl/api/util"
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui"
+	"github.com/go-gost/gostctl/ui/page"
+	"github.com/go-gost/gostctl/ui/theme"
 	"github.com/go-gost/gostctl/ui/widget"
 	_ "github.com/go-gost/gostctl/winres"
 )
@@ -23,10 +25,7 @@ func main() {
 	Init()
 
 	go func() {
-		var w app.Window
-		w.Option(app.Title("GOST"))
-		// w.Option(app.MinSize(800, 600))
-		err := run(&w)
+		err := run()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -35,11 +34,12 @@ func main() {
 	app.Main()
 }
 
-func run(w *app.Window) error {
-	ui := ui.NewUI(w)
+func run() error {
+	ui := ui.NewUI()
 
-	go handleTaskEvent(ui)
+	go handleEvent(ui)
 
+	w := ui.Window()
 	var ops op.Ops
 	for {
 		switch e := w.Event().(type) {
@@ -53,13 +53,24 @@ func run(w *app.Window) error {
 	}
 }
 
-func handleTaskEvent(ui *ui.UI) {
-	for e := range runner.Event() {
-		switch e.TaskID {
-		case runner.TaskGetConfig:
-			cfg := config.Get()
-			if cfg.CurrentServer >= 0 && cfg.CurrentServer < len(cfg.Servers) {
-				server := cfg.Servers[cfg.CurrentServer]
+func handleEvent(ui *ui.UI) {
+	for {
+		select {
+		case e := <-ui.Router().Event():
+			switch e.ID {
+			case page.EventThemeChanged:
+				slog.Debug("theme changed", "event", e.ID)
+				ui.Window().Option(app.StatusColor(theme.Current().Material.Bg))
+			}
+
+		case e := <-runner.Event():
+			switch e.TaskID {
+			case runner.TaskGetConfig:
+				server := config.CurrentServer()
+				if server == nil {
+					break
+				}
+
 				if e.Err != nil {
 					slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
 					server.SetState(config.ServerError)
@@ -71,15 +82,15 @@ func handleTaskEvent(ui *ui.UI) {
 					server.SetState(config.ServerReady)
 				}
 				ui.Window().Invalidate()
-			}
 
-		default:
-			if e.Err != nil {
-				slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
-				ui.Router().Notify(widget.Message{
-					Type:    widget.Error,
-					Content: e.Err.Error(),
-				})
+			default:
+				if e.Err != nil {
+					slog.Error(fmt.Sprintf("task: %s", e.Err), "task", e.TaskID)
+					ui.Router().Notify(widget.Message{
+						Type:    widget.Error,
+						Content: e.Err.Error(),
+					})
+				}
 			}
 		}
 	}

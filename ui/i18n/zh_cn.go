@@ -48,6 +48,7 @@ var zh_CN = map[Key]string{
 	Username:  "用户名",
 	Password:  "密码",
 	AutoSave:  "自动保存",
+	Readonly:  "只读模式",
 
 	Basic:         "基础",
 	Advanced:      "高级",
@@ -91,6 +92,7 @@ var zh_CN = map[Key]string{
 	DeleteLimits:       "删除限速配置？",
 	DeleteObserver:     "删除观测器？",
 	DeleteRecorder:     "删除数据记录器？",
+	DeleteRecord:       "删除记录项？",
 
 	SelectorStrategy: "策略",
 	SelectorRound:    "轮询",
@@ -138,6 +140,7 @@ var zh_CN = map[Key]string{
 	Only:           "仅使用",
 	ClientIP:       "客户端IP",
 	Limits:         "限制",
+	Record:         "记录",
 
 	ErrNameRequired: "名称必须填写",
 	ErrNameExists:   "名称已存在",

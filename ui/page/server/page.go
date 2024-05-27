@@ -46,6 +46,7 @@ type serverPage struct {
 
 	autoSave ui_widget.Switcher
 	saveFile component.TextField
+	readonly ui_widget.Switcher
 
 	id   string
 	perm page.Perm
@@ -108,6 +109,7 @@ func NewPage(r *page.Router) page.Page {
 				MaxLen:     255,
 			},
 		},
+		readonly: ui_widget.Switcher{Title: i18n.Readonly},
 		delDialog: ui_widget.Dialog{
 			Title: i18n.DeleteServer,
 		},
@@ -174,11 +176,15 @@ func (p *serverPage) Init(opts ...page.PageOption) {
 		p.autoSave.SetValue(true)
 		p.saveFile.SetText(server.AutoSave)
 	}
+
+	p.readonly.SetValue(server.Readonly)
 }
 
 func (p *serverPage) Layout(gtx page.C) page.D {
 	if p.btnBack.Clicked(gtx) {
-		p.router.Back()
+		if page := p.router.Back(); page != nil {
+			page.Init()
+		}
 	}
 	if p.btnActive.Clicked(gtx) && !p.active {
 		p.activate()
@@ -189,7 +195,9 @@ func (p *serverPage) Layout(gtx page.C) page.D {
 	}
 	if p.btnSave.Clicked(gtx) {
 		if p.save() {
-			p.router.Back()
+			if page := p.router.Back(); page != nil {
+				page.Init()
+			}
 		}
 	}
 
@@ -197,7 +205,9 @@ func (p *serverPage) Layout(gtx page.C) page.D {
 		p.delDialog.OnClick = func(ok bool) {
 			if ok {
 				p.delete()
-				p.router.Back()
+				if page := p.router.Back(); page != nil {
+					page.Init()
+				}
 			}
 			p.router.HideModal(gtx)
 		}
@@ -416,6 +426,9 @@ func (p *serverPage) layout(gtx page.C, th *page.T) page.D {
 					})
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return p.readonly.Layout(gtx, th)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return p.autoSave.Layout(gtx, th)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -468,6 +481,7 @@ func (p *serverPage) save() bool {
 	if timeout, _ := strconv.Atoi(strings.TrimSpace(p.timeout.Text())); timeout > 0 {
 		server.Timeout = time.Duration(timeout) * time.Second
 	}
+	server.Readonly = p.readonly.Value()
 	if p.autoSave.Value() {
 		server.AutoSave = strings.TrimSpace(p.saveFile.Text())
 	}
@@ -530,6 +544,9 @@ func (p *serverPage) delete() {
 	cfg := config.Get()
 	for _, server := range cfg.Servers {
 		if server.Name == p.id {
+			if p.active {
+				cfg.CurrentServer = 0
+			}
 			continue
 		}
 		servers = append(servers, server)

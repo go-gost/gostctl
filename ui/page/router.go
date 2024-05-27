@@ -37,6 +37,7 @@ type Router struct {
 	*material.Theme
 	modal        *component.ModalLayer
 	notification *ui_widget.Notification
+	events       chan Event
 }
 
 func NewRouter(w *app.Window, th *T) *Router {
@@ -48,6 +49,7 @@ func NewRouter(w *app.Window, th *T) *Router {
 		notification: ui_widget.NewNotification(3*time.Second, func() {
 			w.Invalidate()
 		}),
+		events: make(chan Event, 16),
 	}
 
 	return r
@@ -75,18 +77,18 @@ func (r *Router) Goto(route Route) {
 	slog.Debug(fmt.Sprintf("go to %s", route.Path), "kind", "router", "route.id", route.ID)
 }
 
-func (r *Router) Back() {
+func (r *Router) Back() (page Page) {
 	r.stack.Pop()
 	route := r.stack.Peek()
 
-	page := r.pages[route.Path]
+	page = r.pages[route.Path]
 	if page == nil {
 		return
 	}
 	r.current = route
 
-	// page.Init(WithPageID(route.ID))
 	slog.Debug(fmt.Sprintf("back to %s", route.Path), "kind", "router", "route.id", route.ID)
+	return
 }
 
 func (r *Router) Layout(gtx C) D {
@@ -163,6 +165,17 @@ func (r *Router) HideModal(gtx C) {
 
 func (r *Router) Notify(message ui_widget.Message) {
 	r.notification.Show(message)
+}
+
+func (r *Router) Emit(event Event) {
+	select {
+	case r.events <- event:
+	default:
+	}
+}
+
+func (r *Router) Event() <-chan Event {
+	return r.events
 }
 
 type routeStack struct {

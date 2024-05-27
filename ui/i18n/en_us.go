@@ -48,6 +48,7 @@ var en_US = map[Key]string{
 	Username:  "Username",
 	Password:  "Password",
 	AutoSave:  "Auto save",
+	Readonly:  "Read-only",
 
 	Basic:         "Basic",
 	Advanced:      "Advanced",
@@ -91,6 +92,7 @@ var en_US = map[Key]string{
 	DeleteLimits:       "Delete limits?",
 	DeleteObserver:     "Delete observer?",
 	DeleteRecorder:     "Delete recorder?",
+	DeleteRecord:       "Delete record?",
 
 	SelectorStrategy: "Strategy",
 	SelectorRound:    "Round-Robin",
@@ -138,6 +140,7 @@ var en_US = map[Key]string{
 	Only:           "Only",
 	ClientIP:       "Client IP",
 	Limits:         "Limits",
+	Record:         "Record",
 
 	ErrNameRequired: "name is required",
 	ErrNameExists:   "name exists",
