@@ -2,11 +2,11 @@ package ui
 
 import (
 	"gioui.org/app"
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/text"
 	"gioui.org/widget/material"
 	"github.com/go-gost/gostctl/config"
+	"github.com/go-gost/gostctl/ui/fonts"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/page"
 	"github.com/go-gost/gostctl/ui/page/admission"
@@ -54,8 +54,8 @@ func NewUI() *UI {
 	}
 
 	th := material.NewTheme()
-	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
-	// th.Shaper = text.NewShaper(text.WithCollection(fonts.Collection()))
+	// th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	th.Shaper = text.NewShaper(text.WithCollection(fonts.Collection()))
 	th.Palette = theme.Current().Material
 
 	w := &app.Window{}

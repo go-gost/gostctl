@@ -44,10 +44,8 @@ func (p *Nav) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 
 		if p.current == index {
 			btn.background = theme.Current().NavButtonContrastBg
-			btn.borderWidth = 0
 		} else {
-			btn.background = theme.Current().Material.Bg
-			btn.borderWidth = 1
+			btn.background = theme.Current().NavButtonBg
 		}
 
 		return layout.UniformInset(8).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -59,15 +57,13 @@ func (p *Nav) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 type NavButton struct {
 	btn          widget.Clickable
 	cornerRadius unit.Dp
-	borderWidth  unit.Dp
 	background   color.NRGBA
 	text         i18n.Key
 }
 
 func NewNavButton(text i18n.Key) *NavButton {
 	return &NavButton{
-		cornerRadius: 18,
-		borderWidth:  1,
+		cornerRadius: 20,
 		text:         text,
 	}
 }
@@ -78,20 +74,14 @@ func (btn *NavButton) Layout(gtx layout.Context, th *material.Theme) layout.Dime
 		CornerRadius: btn.cornerRadius,
 		Button:       &btn.btn,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return widget.Border{
-			Color:        theme.Current().NavButtonContrastBg,
-			Width:        btn.borderWidth,
-			CornerRadius: btn.cornerRadius,
+		return layout.Inset{
+			Top:    8,
+			Bottom: 8,
+			Left:   16,
+			Right:  16,
 		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{
-				Top:    9,
-				Bottom: 9,
-				Left:   16,
-				Right:  16,
-			}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				label := material.Body1(th, btn.text.Value())
-				return label.Layout(gtx)
-			})
+			label := material.Body1(th, btn.text.Value())
+			return label.Layout(gtx)
 		})
 	})
 }

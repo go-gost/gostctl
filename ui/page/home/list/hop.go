@@ -93,14 +93,14 @@ func (p *hopList) Layout(gtx page.C, th *page.T) page.D {
 										}.Layout(gtx, func(gtx page.C) page.D {
 											return component.SurfaceStyle{
 												Theme:       th,
-												ShadowStyle: component.ShadowStyle{CornerRadius: 12},
+												ShadowStyle: component.ShadowStyle{CornerRadius: 14},
 												Fill:        theme.Current().ItemBg,
 											}.Layout(gtx, func(gtx page.C) page.D {
 												return layout.Inset{
 													Top:    4,
 													Bottom: 4,
-													Left:   8,
-													Right:  8,
+													Left:   10,
+													Right:  10,
 												}.Layout(gtx, material.Body2(th, hop.Nodes[i].Name).Layout)
 											})
 										})

@@ -58,14 +58,14 @@ func (p *Selector) Layout(gtx layout.Context, th *material.Theme) layout.Dimensi
 							return layout.UniformInset(4).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 								return component.SurfaceStyle{
 									Theme:       th,
-									ShadowStyle: component.ShadowStyle{CornerRadius: 12},
+									ShadowStyle: component.ShadowStyle{CornerRadius: 14},
 									Fill:        theme.Current().ItemBg,
 								}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 									return layout.Inset{
 										Top:    4,
 										Bottom: 4,
-										Left:   8,
-										Right:  8,
+										Left:   10,
+										Right:  10,
 									}.Layout(gtx, material.Body2(th, names[i]).Layout)
 								})
 							})

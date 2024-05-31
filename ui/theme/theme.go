@@ -43,7 +43,7 @@ var (
 			},
 			ContentSurfaceBg:    color.NRGBA(colornames.Grey50),
 			ListBg:              color.NRGBA(colornames.BlueGrey50),
-			NavButtonBg:         color.NRGBA(colornames.White),
+			NavButtonBg:         color.NRGBA(colornames.BlueGrey50),
 			NavButtonContrastBg: color.NRGBA(colornames.BlueGrey100),
 			ItemBg:              color.NRGBA(colornames.Grey300),
 			NotificationBg:      color.NRGBA(colornames.Grey200),
