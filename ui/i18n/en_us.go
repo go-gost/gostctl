@@ -94,10 +94,12 @@ var en_US = map[Key]string{
 	DeleteRecorder:     "Delete recorder?",
 	DeleteRecord:       "Delete record?",
 
-	SelectorStrategy: "Strategy",
-	SelectorRound:    "Round-Robin",
-	SelectorRandom:   "Random",
-	SelectorFIFO:     "HA",
+	SelectorStrategy:    "Strategy",
+	SelectorRound:       "Round-Robin",
+	SelectorRandom:      "Random",
+	SelectorFIFO:        "HA",
+	SelectorMaxFails:    "Maximum number of failures",
+	SelectorFailTimeout: "Failure timeout duration",
 
 	DataSource:       "Data Source",
 	FileDataSource:   "File",
@@ -158,8 +160,9 @@ var en_US = map[Key]string{
 	Closed:  "Closed",
 	Unknown: "Unknown",
 
-	Settings: "Settings",
+	Event:    "Event",
 	Config:   "Config",
+	Settings: "Settings",
 	Language: "Language",
 	English:  "English",
 	Chinese:  "Chinese",

@@ -1,5 +1,7 @@
 package page
 
+import "time"
+
 type EventID string
 
 const (
@@ -8,4 +10,9 @@ const (
 
 type Event struct {
 	ID EventID
+}
+
+type ServerEvent struct {
+	Msg  string
+	Time time.Time
 }

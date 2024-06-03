@@ -14,6 +14,8 @@ import (
 	"github.com/go-gost/gostctl/ui/page/auther/auth"
 	"github.com/go-gost/gostctl/ui/page/bypass"
 	"github.com/go-gost/gostctl/ui/page/chain"
+	page_config "github.com/go-gost/gostctl/ui/page/config"
+	page_event "github.com/go-gost/gostctl/ui/page/event"
 	"github.com/go-gost/gostctl/ui/page/home"
 	"github.com/go-gost/gostctl/ui/page/hop"
 	"github.com/go-gost/gostctl/ui/page/hosts"
@@ -87,6 +89,8 @@ func NewUI() *UI {
 	router.Register(page.PageLimit, limit.NewPage(router))
 	router.Register(page.PageObserver, observer.NewPage(router))
 	router.Register(page.PageRecorder, recorder.NewPage(router))
+	router.Register(page.PageEvent, page_event.NewPage(router))
+	router.Register(page.PageConfig, page_config.NewPage(router))
 	router.Register(page.PageSettings, settings.NewPage(router))
 
 	router.Goto(page.Route{

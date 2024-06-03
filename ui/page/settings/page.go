@@ -134,7 +134,7 @@ func (p *settingsPage) layout(gtx layout.Context, th *material.Theme) layout.Dim
 			}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						gtx.Constraints.Max.X = gtx.Dp(60)
+						gtx.Constraints.Max.X = gtx.Dp(80)
 						return icons.IconApp.Layout(gtx)
 					})
 				}),
@@ -146,7 +146,7 @@ func (p *settingsPage) layout(gtx layout.Context, th *material.Theme) layout.Dim
 				}),
 				layout.Rigid(layout.Spacer{Height: 8}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return layout.Center.Layout(gtx, material.Body2(th, version.Version).Layout)
+					return layout.Center.Layout(gtx, material.Body1(th, version.Version).Layout)
 				}),
 			)
 		}),

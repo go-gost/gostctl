@@ -36,6 +36,8 @@ type hostMapperPage struct {
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
 
+	btnConfig widget.Clickable
+
 	name component.TextField
 
 	mappings        []*api.HostMappingConfig
@@ -364,6 +366,13 @@ func (p *hostMapperPage) Layout(gtx page.C) page.D {
 }
 
 func (p *hostMapperPage) layout(gtx page.C, th *page.T) page.D {
+	if p.btnConfig.Clicked(gtx) {
+		p.router.Goto(page.Route{
+			Path:  page.PageConfig,
+			Value: p.generateConfig(),
+		})
+	}
+
 	src := gtx.Source
 
 	if !p.edit {
@@ -390,13 +399,20 @@ func (p *hostMapperPage) layout(gtx page.C, th *page.T) page.D {
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 8}.Layout),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 8}.Layout),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.PluginMode), i18n.Plugin.Value()).Layout(gtx)
+						}),
+						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
+							btn.Color = th.Fg
+							btn.Background = theme.Current().ContentSurfaceBg
+							return btn.Layout(gtx)
 						}),
 					)
 				}),

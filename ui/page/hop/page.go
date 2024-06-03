@@ -43,6 +43,8 @@ type hopPage struct {
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
 
+	btnConfig widget.Clickable
+
 	name component.TextField
 
 	enableSelector      ui_widget.Switcher
@@ -271,7 +273,7 @@ func (p *hopPage) Init(opts ...page.PageOption) {
 				}
 			}
 			p.selectorMaxFails.SetText(strconv.Itoa(hop.Selector.MaxFails))
-			p.selectorFailTimeout.SetText(hop.Selector.FailTimeout.String())
+			p.selectorFailTimeout.SetText(strconv.Itoa(int(hop.Selector.FailTimeout.Seconds())))
 		}
 	}
 
@@ -457,6 +459,13 @@ func (p *hopPage) Layout(gtx page.C) page.D {
 }
 
 func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
+	if p.btnConfig.Clicked(gtx) {
+		p.router.Goto(page.Route{
+			Path:  page.PageConfig,
+			Value: p.generateConfig(),
+		})
+	}
+
 	src := gtx.Source
 
 	if !p.edit {
@@ -483,13 +492,20 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.BasicMode), i18n.Basic.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 8}.Layout),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Width: 8}.Layout),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.PluginMode), i18n.Plugin.Value()).Layout(gtx)
+						}),
+						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
+							btn.Color = th.Fg
+							btn.Background = theme.Current().ContentSurfaceBg
+							return btn.Layout(gtx)
 						}),
 					)
 				}),
@@ -585,11 +601,15 @@ func (p *hopPage) layout(gtx page.C, th *page.T) page.D {
 										}
 										return p.selectorStrategy.Layout(gtx, th)
 									}),
+									layout.Rigid(layout.Spacer{Height: 4}.Layout),
+									layout.Rigid(material.Body1(th, i18n.SelectorMaxFails.Value()).Layout),
 									layout.Rigid(func(gtx page.C) page.D {
-										return p.selectorMaxFails.Layout(gtx, th, "Max fails")
+										return p.selectorMaxFails.Layout(gtx, th, "")
 									}),
+									layout.Rigid(layout.Spacer{Height: 8}.Layout),
+									layout.Rigid(material.Body1(th, i18n.SelectorFailTimeout.Value()).Layout),
 									layout.Rigid(func(gtx page.C) page.D {
-										return p.selectorFailTimeout.Layout(gtx, th, "Fail timeout in seconds")
+										return p.selectorFailTimeout.Layout(gtx, th, "")
 									}),
 								)
 							})

@@ -94,10 +94,12 @@ var zh_CN = map[Key]string{
 	DeleteRecorder:     "删除数据记录器？",
 	DeleteRecord:       "删除记录项？",
 
-	SelectorStrategy: "策略",
-	SelectorRound:    "轮询",
-	SelectorRandom:   "随机",
-	SelectorFIFO:     "主备",
+	SelectorStrategy:    "策略",
+	SelectorRound:       "轮询",
+	SelectorRandom:      "随机",
+	SelectorFIFO:        "主备",
+	SelectorMaxFails:    "最大失败次数",
+	SelectorFailTimeout: "失败超时时长",
 
 	DataSource:       "数据源",
 	FileDataSource:   "文件",
@@ -158,8 +160,9 @@ var zh_CN = map[Key]string{
 	Closed:  "关闭",
 	Unknown: "未知",
 
-	Settings: "设置",
+	Event:    "事件",
 	Config:   "配置",
+	Settings: "设置",
 	Language: "语言",
 	English:  "英语",
 	Chinese:  "中文",

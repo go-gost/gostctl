@@ -166,10 +166,12 @@ const (
 	DeleteRecorder     Key = "deleteRecorder"
 	DeleteRecord       Key = "deleteRecord"
 
-	SelectorStrategy Key = "selectorStrategy"
-	SelectorRound    Key = "selectorRound"
-	SelectorRandom   Key = "selectorRandom"
-	SelectorFIFO     Key = "selectorFIFO"
+	SelectorStrategy    Key = "selectorStrategy"
+	SelectorRound       Key = "selectorRound"
+	SelectorRandom      Key = "selectorRandom"
+	SelectorFIFO        Key = "selectorFIFO"
+	SelectorMaxFails    Key = "selectorMaxFails"
+	SelectorFailTimeout Key = "selectorFailTimeout"
 
 	DataSource       Key = "dataSource"
 	FileDataSource   Key = "fileDataSource"
@@ -210,8 +212,9 @@ const (
 	Closed  Key = "closed"
 	Unknown Key = "unknown"
 
-	Settings Key = "settings"
 	Config   Key = "config"
+	Event    Key = "event"
+	Settings Key = "settings"
 	Language Key = "language"
 	English  Key = "english"
 	Chinese  Key = "chinese"

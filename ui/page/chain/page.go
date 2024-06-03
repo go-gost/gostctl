@@ -44,6 +44,8 @@ type chainPage struct {
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
 
+	btnConfig widget.Clickable
+
 	name component.TextField
 
 	hops   []chainHop
@@ -243,6 +245,13 @@ func (p *chainPage) Layout(gtx page.C) page.D {
 }
 
 func (p *chainPage) layout(gtx page.C, th *page.T) page.D {
+	if p.btnConfig.Clicked(gtx) {
+		p.router.Goto(page.Route{
+			Path:  page.PageConfig,
+			Value: p.generateConfig(),
+		})
+	}
+
 	src := gtx.Source
 
 	if !p.edit {
@@ -264,6 +273,23 @@ func (p *chainPage) layout(gtx page.C, th *page.T) page.D {
 			return layout.Flex{
 				Axis: layout.Vertical,
 			}.Layout(gtx,
+				layout.Rigid(func(gtx page.C) page.D {
+					gtx.Source = src
+					return layout.Flex{
+						Alignment: layout.Middle,
+					}.Layout(gtx,
+						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
+							btn.Color = th.Fg
+							btn.Background = theme.Current().ContentSurfaceBg
+							return btn.Layout(gtx)
+						}),
+					)
+				}),
+
+				layout.Rigid(layout.Spacer{Height: 16}.Layout),
+
 				layout.Rigid(func(gtx page.C) page.D {
 					return material.Body1(th, i18n.Name.Value()).Layout(gtx)
 				}),

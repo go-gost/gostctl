@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"gioui.org/font"
 	"gioui.org/layout"
@@ -50,6 +51,9 @@ type servicePage struct {
 	btnDelete widget.Clickable
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
+
+	btnEvent  widget.Clickable
+	btnConfig widget.Clickable
 
 	name component.TextField
 	addr component.TextField
@@ -390,6 +394,36 @@ func (p *servicePage) Layout(gtx page.C) page.D {
 }
 
 func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
+	if p.btnConfig.Clicked(gtx) {
+		p.router.Goto(page.Route{
+			Path:  page.PageConfig,
+			Value: p.generateConfig(),
+		})
+	}
+	if p.btnEvent.Clicked(gtx) {
+		cfg := api.GetConfig()
+		var service *api.ServiceConfig
+		for _, svc := range cfg.Services {
+			if svc.Name == p.id {
+				service = svc
+				break
+			}
+		}
+		if service != nil && service.Status != nil {
+			var events []page.ServerEvent
+			for _, ev := range service.Status.Events {
+				events = append(events, page.ServerEvent{
+					Msg:  ev.Msg,
+					Time: time.Unix(ev.Time, 0),
+				})
+			}
+			p.router.Goto(page.Route{
+				Path:  page.PageEvent,
+				Value: events,
+			})
+		}
+	}
+
 	src := gtx.Source
 
 	if !p.edit {
@@ -418,6 +452,20 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
 							return material.RadioButton(th, &p.mode, string(page.AdvancedMode), i18n.Advanced.Value()).Layout(gtx)
+						}),
+						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
+							btn.Color = th.Fg
+							btn.Background = theme.Current().ContentSurfaceBg
+							return btn.Layout(gtx)
+						}),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							btn := material.IconButton(th, &p.btnEvent, icons.IconEvent, "Event")
+							btn.Color = th.Fg
+							btn.Background = theme.Current().ContentSurfaceBg
+							return btn.Layout(gtx)
 						}),
 					)
 				}),

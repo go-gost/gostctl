@@ -11,6 +11,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	"github.com/go-gost/gostctl/api"
 	"github.com/go-gost/gostctl/api/util"
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/i18n"
@@ -29,6 +30,8 @@ type serverPage struct {
 	btnDelete widget.Clickable
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
+
+	btnConfig widget.Clickable
 
 	list layout.List
 
@@ -306,6 +309,15 @@ func (p *serverPage) Layout(gtx page.C) page.D {
 }
 
 func (p *serverPage) layout(gtx page.C, th *page.T) page.D {
+	if p.btnConfig.Clicked(gtx) {
+		p.router.Goto(page.Route{
+			Path:  page.PageConfig,
+			Value: api.GetConfig(),
+		})
+	}
+
+	src := gtx.Source
+
 	if !p.edit {
 		gtx = gtx.Disabled()
 	}
@@ -321,6 +333,27 @@ func (p *serverPage) layout(gtx page.C, th *page.T) page.D {
 			return layout.Flex{
 				Axis: layout.Vertical,
 			}.Layout(gtx,
+				layout.Rigid(func(gtx page.C) page.D {
+					if !p.active {
+						return page.D{}
+					}
+
+					gtx.Source = src
+					return layout.Flex{
+						Alignment: layout.Middle,
+					}.Layout(gtx,
+						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
+							btn.Color = th.Fg
+							btn.Background = theme.Current().ContentSurfaceBg
+							return btn.Layout(gtx)
+						}),
+					)
+				}),
+
+				layout.Rigid(layout.Spacer{Height: 16}.Layout),
+
 				layout.Rigid(func(gtx page.C) page.D {
 					return material.Body1(th, i18n.Name.Value()).Layout(gtx)
 				}),

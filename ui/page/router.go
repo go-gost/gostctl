@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -92,6 +94,25 @@ func (r *Router) Back() (page Page) {
 }
 
 func (r *Router) Layout(gtx C) D {
+	if r.stack.Peek().Path != PageHome {
+		event.Op(gtx.Ops, r.w)
+		for {
+			ev, ok := gtx.Event(
+				key.Filter{Name: key.NameBack},
+				key.Filter{Name: key.NameEscape},
+			)
+			if !ok {
+				break
+			}
+			switch ev := ev.(type) {
+			case key.Event:
+				if ev.State == key.Press {
+					r.Back()
+				}
+			}
+		}
+	}
+
 	r.Theme.Palette = theme.Current().Material
 
 	defer r.modal.Layout(gtx, r.Theme)

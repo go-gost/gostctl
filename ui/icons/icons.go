@@ -61,6 +61,8 @@ var (
 	IconActionHourGlassEmpty = mustIcon(icons.ActionHourglassEmpty)
 	IconInfo                 = mustIcon(icons.ActionInfoOutline)
 	IconAlert                = mustIcon(icons.AlertErrorOutline)
+	IconCode                 = mustIcon(icons.ActionDescription)
+	IconEvent                = mustIcon(icons.ActionEvent)
 )
 
 func mustIcon(data []byte) *widget.Icon {

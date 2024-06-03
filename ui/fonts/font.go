@@ -11,18 +11,14 @@ import (
 var (
 
 	//go:embed NotoSans-Regular.ttf
-	fontNotoSansRegular []byte
+	notoSansRegular []byte
 	//go:embed NotoSans-SemiBold.ttf
-	fontNotoSansSemiBold []byte
-	//go:embed NotoSans-Bold.ttf
-	fontNotoSansBold []byte
+	notoSansSemiBold []byte
 
 	//go:embed NotoSansSC-Regular.ttf
-	fontNotoSansSCRegular []byte
+	notoSansSCRegular []byte
 	//go:embed NotoSansSC-SemiBold.ttf
-	fontNotoSansSCSemiBold []byte
-	//go:embed NotoSansSC-Bold.ttf
-	fontNotoSansSCBold []byte
+	notoSansSCSemiBold []byte
 )
 
 var (
@@ -30,12 +26,10 @@ var (
 )
 
 func init() {
-	register(fontNotoSansRegular)
-	register(fontNotoSansSemiBold)
-	register(fontNotoSansBold)
-	register(fontNotoSansSCRegular)
-	register(fontNotoSansSCSemiBold)
-	register(fontNotoSansSCBold)
+	register(notoSansRegular)
+	register(notoSansSemiBold)
+	register(notoSansSCRegular)
+	register(notoSansSCSemiBold)
 }
 
 func Collection() []font.FontFace {

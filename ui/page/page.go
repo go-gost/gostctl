@@ -31,6 +31,8 @@ const (
 	PageLimit         PagePath = "/limiter/limit"
 	PageObserver      PagePath = "/observer"
 	PageRecorder      PagePath = "/recorder"
+	PageEvent         PagePath = "/event"
+	PageConfig        PagePath = "/config"
 	PageSettings      PagePath = "/settings"
 )
 

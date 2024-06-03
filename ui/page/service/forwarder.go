@@ -96,7 +96,7 @@ func (p *forwarder) init(cfg *api.ForwarderConfig) {
 				}
 			}
 			p.selectorMaxFails.SetText(strconv.Itoa(selector.MaxFails))
-			p.selectorFailTimeout.SetText(selector.FailTimeout.String())
+			p.selectorFailTimeout.SetText(strconv.Itoa(int(selector.FailTimeout.Seconds())))
 		}
 	}
 
@@ -157,11 +157,15 @@ func (p *forwarder) Layout(gtx page.C, th *page.T) page.D {
 								}
 								return p.selectorStrategy.Layout(gtx, th)
 							}),
+							layout.Rigid(layout.Spacer{Height: 4}.Layout),
+							layout.Rigid(material.Body1(th, i18n.SelectorMaxFails.Value()).Layout),
 							layout.Rigid(func(gtx page.C) page.D {
-								return p.selectorMaxFails.Layout(gtx, th, "Max fails")
+								return p.selectorMaxFails.Layout(gtx, th, "")
 							}),
+							layout.Rigid(layout.Spacer{Height: 8}.Layout),
+							layout.Rigid(material.Body1(th, i18n.SelectorFailTimeout.Value()).Layout),
 							layout.Rigid(func(gtx page.C) page.D {
-								return p.selectorFailTimeout.Layout(gtx, th, "Fail timeout in seconds")
+								return p.selectorFailTimeout.Layout(gtx, th, "")
 							}),
 						)
 					})
