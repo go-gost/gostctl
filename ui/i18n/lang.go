@@ -212,15 +212,16 @@ const (
 	Closed  Key = "closed"
 	Unknown Key = "unknown"
 
-	Config   Key = "config"
-	Event    Key = "event"
-	Settings Key = "settings"
-	Language Key = "language"
-	English  Key = "english"
-	Chinese  Key = "chinese"
-	Theme    Key = "theme"
-	Light    Key = "light"
-	Dark     Key = "dark"
+	Config      Key = "config"
+	Event       Key = "event"
+	Settings    Key = "settings"
+	Language    Key = "language"
+	English     Key = "english"
+	Chinese     Key = "chinese"
+	Theme       Key = "theme"
+	ThemeLight  Key = "themeLight"
+	ThemeDark   Key = "themeDark"
+	ThemeSystem Key = "themeSystem"
 )
 
 type Key string

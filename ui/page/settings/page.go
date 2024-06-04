@@ -47,9 +47,6 @@ func (p *settingsPage) Init(opts ...page.PageOption) {
 	if settings.Lang == "" {
 		settings.Lang = i18n.Current().Value
 	}
-	if settings.Theme == "" {
-		settings.Theme = theme.Light
-	}
 
 	p.lang.Clear()
 	p.lang.Select(ui_widget.SelectorItem{
@@ -58,15 +55,21 @@ func (p *settingsPage) Init(opts ...page.PageOption) {
 	})
 
 	p.theme.Clear()
-	if settings.Theme == theme.Light {
+	switch settings.Theme {
+	case theme.Light:
 		p.theme.Select(ui_widget.SelectorItem{
-			Key:   i18n.Light,
+			Key:   i18n.ThemeLight,
 			Value: settings.Theme,
 		})
-	} else {
+	case theme.Dark:
 		p.theme.Select(ui_widget.SelectorItem{
-			Key:   i18n.Dark,
+			Key:   i18n.ThemeDark,
 			Value: settings.Theme,
+		})
+	default:
+		p.theme.Select(ui_widget.SelectorItem{
+			Key:   i18n.ThemeSystem,
+			Value: theme.System,
 		})
 	}
 }
@@ -242,8 +245,9 @@ func (p *settingsPage) showLangMenu(gtx layout.Context) {
 
 func (p *settingsPage) showThemeMenu(gtx layout.Context) {
 	options := []ui_widget.MenuOption{
-		{Key: i18n.Light, Value: theme.Light},
-		{Key: i18n.Dark, Value: theme.Dark},
+		{Key: i18n.ThemeSystem, Value: theme.System},
+		{Key: i18n.ThemeLight, Value: theme.Light},
+		{Key: i18n.ThemeDark, Value: theme.Dark},
 	}
 
 	var found bool

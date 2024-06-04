@@ -3,7 +3,10 @@ package widget
 import (
 	"image/color"
 
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -32,6 +35,45 @@ func (p *Nav) SetCurrent(n int) {
 }
 
 func (p *Nav) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	defer clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops).Pop()
+	event.Op(gtx.Ops, &p.list)
+	for {
+		ev, ok := gtx.Event(
+			key.Filter{Name: key.NameLeftArrow},
+			key.Filter{Name: key.NameRightArrow},
+		)
+		if !ok {
+			break
+		}
+		switch ev := ev.(type) {
+		case key.Event:
+			if ev.State != key.Press {
+				break
+			}
+			switch ev.Name {
+			case key.NameLeftArrow:
+				current := p.Current() - 1
+				if current < 0 {
+					current = 0
+				}
+				p.SetCurrent(current)
+				if current < p.list.Position.First {
+					p.list.ScrollTo(current)
+				}
+
+			case key.NameRightArrow:
+				current := p.Current() + 1
+				if current >= len(p.btns) {
+					current = len(p.btns) - 1
+				}
+				p.SetCurrent(current)
+				if current+1 >= p.list.Position.First+p.list.Position.Count {
+					p.list.ScrollTo(p.list.Position.First + 1)
+				}
+			}
+		}
+	}
+
 	for i, btn := range p.btns {
 		if btn.btn.Clicked(gtx) {
 			p.current = i

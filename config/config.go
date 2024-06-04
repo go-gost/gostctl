@@ -48,6 +48,15 @@ func Init() {
 	if err := cfg.load(); err != nil {
 		slog.Error(fmt.Sprintf("load config: %v", err))
 		if _, ok := err.(*os.PathError); ok {
+			if len(cfg.Servers) == 0 {
+				cfg.Servers = append(cfg.Servers, &Server{
+					Name:     "gost.run",
+					URL:      "https://api.gost.run",
+					Interval: 5 * time.Second,
+					Timeout:  10 * time.Second,
+					Readonly: true,
+				})
+			}
 			cfg.Write()
 		}
 	}
