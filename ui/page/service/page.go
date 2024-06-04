@@ -455,14 +455,17 @@ func (p *servicePage) layout(gtx page.C, th *page.T) page.D {
 						}),
 						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
-							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
+							if p.id == "" {
+								return page.D{}
+							}
+							btn := material.IconButton(th, &p.btnEvent, icons.IconEvent, "Event")
 							btn.Color = th.Fg
 							btn.Background = theme.Current().ContentSurfaceBg
 							return btn.Layout(gtx)
 						}),
 						layout.Rigid(layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
-							btn := material.IconButton(th, &p.btnEvent, icons.IconEvent, "Event")
+							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
 							btn.Color = th.Fg
 							btn.Background = theme.Current().ContentSurfaceBg
 							return btn.Layout(gtx)

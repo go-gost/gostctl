@@ -106,9 +106,13 @@ func (r *Runner) Exec(ctx context.Context, task Task, opts ...Option) error {
 
 		log.With("duration", time.Since(t)).DebugContext(ctx, fmt.Sprintf("task %s done: %v", task.ID(), err))
 
-		r.events <- &TaskEvent{
-			TaskID: task.ID(),
-			Err:    err,
+		select {
+		case <-ctx.Done():
+		default:
+			r.events <- &TaskEvent{
+				TaskID: task.ID(),
+				Err:    err,
+			}
 		}
 
 		return err
@@ -123,9 +127,14 @@ func (r *Runner) Exec(ctx context.Context, task Task, opts ...Option) error {
 		}()
 
 		run := func() {
-			r.events <- &TaskEvent{
-				TaskID: task.ID(),
-				Err:    task.Run(ctx),
+			err := task.Run(ctx)
+			select {
+			case <-ctx.Done():
+			default:
+				r.events <- &TaskEvent{
+					TaskID: task.ID(),
+					Err:    err,
+				}
 			}
 		}
 

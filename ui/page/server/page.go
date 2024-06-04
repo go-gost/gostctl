@@ -31,6 +31,7 @@ type serverPage struct {
 	btnEdit   widget.Clickable
 	btnSave   widget.Clickable
 
+	btnEvent  widget.Clickable
 	btnConfig widget.Clickable
 
 	list layout.List
@@ -315,6 +316,28 @@ func (p *serverPage) layout(gtx page.C, th *page.T) page.D {
 			Value: api.GetConfig(),
 		})
 	}
+	if p.btnEvent.Clicked(gtx) {
+		server := &config.Server{}
+		for _, srv := range config.Get().Servers {
+			if srv.Name == p.id {
+				server = srv
+				break
+			}
+		}
+		if server != nil {
+			var events []page.ServerEvent
+			for _, ev := range server.Events() {
+				events = append(events, page.ServerEvent{
+					Msg:  ev.Msg,
+					Time: ev.Time,
+				})
+			}
+			p.router.Goto(page.Route{
+				Path:  page.PageEvent,
+				Value: events,
+			})
+		}
+	}
 
 	src := gtx.Source
 
@@ -334,16 +357,27 @@ func (p *serverPage) layout(gtx page.C, th *page.T) page.D {
 				Axis: layout.Vertical,
 			}.Layout(gtx,
 				layout.Rigid(func(gtx page.C) page.D {
-					if !p.active {
-						return page.D{}
-					}
-
 					gtx.Source = src
 					return layout.Flex{
 						Alignment: layout.Middle,
 					}.Layout(gtx,
 						layout.Flexed(1, layout.Spacer{Width: 4}.Layout),
 						layout.Rigid(func(gtx page.C) page.D {
+							if p.id == "" {
+								return page.D{}
+							}
+
+							btn := material.IconButton(th, &p.btnEvent, icons.IconEvent, "Event")
+							btn.Color = th.Fg
+							btn.Background = theme.Current().ContentSurfaceBg
+							return btn.Layout(gtx)
+						}),
+						layout.Rigid(layout.Spacer{Width: 4}.Layout),
+						layout.Rigid(func(gtx page.C) page.D {
+							if !p.active {
+								return page.D{}
+							}
+
 							btn := material.IconButton(th, &p.btnConfig, icons.IconCode, "Config")
 							btn.Color = th.Fg
 							btn.Background = theme.Current().ContentSurfaceBg

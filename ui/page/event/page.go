@@ -82,6 +82,9 @@ func (p *eventPage) Layout(gtx page.C) page.D {
 			})
 		}),
 		layout.Flexed(1, func(gtx page.C) page.D {
+			if len(p.events) == 0 {
+				return page.D{}
+			}
 			return layout.UniformInset(8).Layout(gtx, func(gtx page.C) page.D {
 				return p.layout(gtx, th)
 			})

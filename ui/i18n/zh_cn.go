@@ -1,6 +1,6 @@
 package i18n
 
-var zh_CN = map[Key]string{
+var zh_CN = dict{
 	Server:     "服务器",
 	Service:    "服务",
 	Chain:      "转发链",
@@ -160,14 +160,13 @@ var zh_CN = map[Key]string{
 	Closed:  "关闭",
 	Unknown: "未知",
 
-	Event:       "事件",
-	Config:      "配置",
-	Settings:    "设置",
-	Language:    "语言",
-	English:     "英语",
-	Chinese:     "中文",
-	Theme:       "主题",
-	ThemeLight:  "浅色",
-	ThemeDark:   "深色",
-	ThemeSystem: "系统",
+	Event:    "事件",
+	Config:   "配置",
+	Settings: "设置",
+	Language: "语言",
+	English:  "英语",
+	Chinese:  "中文",
+	Theme:    "主题",
+	Light:    "浅色",
+	Dark:     "深色",
 }

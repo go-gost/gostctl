@@ -1,6 +1,6 @@
 package i18n
 
-var en_US = map[Key]string{
+var en_US = dict{
 	Server:     "Server",
 	Service:    "Service",
 	Chain:      "Chain",
@@ -160,14 +160,13 @@ var en_US = map[Key]string{
 	Closed:  "Closed",
 	Unknown: "Unknown",
 
-	Event:       "Event",
-	Config:      "Config",
-	Settings:    "Settings",
-	Language:    "Language",
-	English:     "English",
-	Chinese:     "Chinese",
-	Theme:       "Theme",
-	ThemeLight:  "Light",
-	ThemeDark:   "Dark",
-	ThemeSystem: "System",
+	Event:    "Event",
+	Config:   "Config",
+	Settings: "Settings",
+	Language: "Language",
+	English:  "English",
+	Chinese:  "Chinese",
+	Theme:    "Theme",
+	Light:    "Light",
+	Dark:     "Dark",
 }

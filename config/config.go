@@ -254,7 +254,7 @@ type LogRotation struct {
 type Config struct {
 	Servers       []*Server
 	CurrentServer int `yaml:"currentServer"`
-	Settings      *Settings
+	Settings      Settings
 	Log           *Log
 }
 

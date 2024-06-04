@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	System string = "system"
-	Light  string = "light"
-	Dark   string = "dark"
+	Light string = "light"
+	Dark  string = "dark"
 )
 
 type Palette struct {
@@ -84,16 +83,14 @@ func Current() Theme {
 	return theme
 }
 
-func UseLight() {
+func Use(mode string) {
 	mux.Lock()
 	defer mux.Unlock()
 
-	theme = light
-}
-
-func UseDark() {
-	mux.Lock()
-	defer mux.Unlock()
-
-	theme = dark
+	switch mode {
+	case Dark:
+		theme = dark
+	default:
+		theme = light
+	}
 }

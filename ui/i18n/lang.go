@@ -1,32 +1,32 @@
 package i18n
 
-import "sync"
+import (
+	"sync"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/language/display"
+	"golang.org/x/text/message"
+)
+
+type dict map[Key]string
 
 type Lang struct {
-	Name    Key
-	Value   string
-	content map[Key]string
+	Name  string
+	Value string
 }
 
-var langs = []Lang{
-	{
-		Name:    English,
-		Value:   "en_US",
-		content: en_US,
-	},
-	{
-		Name:    Chinese,
-		Value:   "zh_CN",
-		content: zh_CN,
-	},
-}
-
-func Langs() []Lang {
-	return langs
+func Langs() (langs []Lang) {
+	for _, tag := range cat.Languages() {
+		langs = append(langs, Lang{
+			Name:  display.Self.Name(tag),
+			Value: tag.String(),
+		})
+	}
+	return
 }
 
 var (
-	currentLang Lang = langs[0]
+	currentLang language.Tag = language.English
 	mux         sync.RWMutex
 )
 
@@ -34,20 +34,19 @@ func Current() Lang {
 	mux.RLock()
 	defer mux.RUnlock()
 
-	return currentLang
+	return Lang{
+		Name:  display.Self.Name(currentLang),
+		Value: currentLang.String(),
+	}
 }
 
 func Set(lang string) {
+	tag := language.Make(lang)
+
 	mux.Lock()
 	defer mux.Unlock()
 
-	for i := range langs {
-		if langs[i].Value == lang {
-			currentLang = langs[i]
-			return
-		}
-	}
-	currentLang = langs[0]
+	currentLang = tag
 }
 
 const (
@@ -212,16 +211,15 @@ const (
 	Closed  Key = "closed"
 	Unknown Key = "unknown"
 
-	Config      Key = "config"
-	Event       Key = "event"
-	Settings    Key = "settings"
-	Language    Key = "language"
-	English     Key = "english"
-	Chinese     Key = "chinese"
-	Theme       Key = "theme"
-	ThemeLight  Key = "themeLight"
-	ThemeDark   Key = "themeDark"
-	ThemeSystem Key = "themeSystem"
+	Config   Key = "config"
+	Event    Key = "event"
+	Settings Key = "settings"
+	Language Key = "language"
+	English  Key = "english"
+	Chinese  Key = "chinese"
+	Theme    Key = "theme"
+	Light    Key = "light"
+	Dark     Key = "dark"
 )
 
 type Key string
@@ -238,9 +236,10 @@ func get(key Key) string {
 	mux.RLock()
 	defer mux.RUnlock()
 
-	if v := currentLang.content[key]; v != "" {
-		return v
+	lang, _, confidence := cat.Matcher().Match(currentLang)
+	if confidence <= language.Low {
+		lang = language.English
 	}
 
-	return langs[0].content[key]
+	return message.NewPrinter(lang, message.Catalog(cat)).Sprintf(string(key))
 }

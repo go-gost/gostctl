@@ -5,6 +5,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/text"
 	"gioui.org/widget/material"
+	"gioui.org/x/pref/locale"
 	gio_theme "gioui.org/x/pref/theme"
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/fonts"
@@ -35,6 +36,7 @@ import (
 	"github.com/go-gost/gostctl/ui/page/service/record"
 	"github.com/go-gost/gostctl/ui/page/settings"
 	"github.com/go-gost/gostctl/ui/theme"
+	"golang.org/x/text/language"
 )
 
 type C = layout.Context
@@ -46,14 +48,32 @@ type UI struct {
 }
 
 func NewUI() *UI {
-	if settings := config.Get().Settings; settings != nil {
-		switch settings.Theme {
-		case theme.Dark:
-			theme.UseDark()
-		default:
-			theme.UseLight()
-		}
+	{
+		settings := config.Get().Settings
+
 		i18n.Set(settings.Lang)
+		if settings.Lang == "" {
+			lang, err := locale.Language()
+			if err != nil {
+				lang = language.English
+			}
+			if ls := lang.String(); ls != i18n.Current().Value {
+				i18n.Set(ls)
+			}
+		}
+
+		theme.Use(settings.Theme)
+		if settings.Theme == "" {
+			if dark, _ := gio_theme.IsDarkMode(); dark {
+				if theme.Current().Name == theme.Light {
+					theme.Use(theme.Dark)
+				}
+			} else {
+				if theme.Current().Name == theme.Dark {
+					theme.Use(theme.Light)
+				}
+			}
+		}
 	}
 
 	th := material.NewTheme()
@@ -105,19 +125,6 @@ func NewUI() *UI {
 }
 
 func (ui *UI) Layout(gtx C) D {
-	if settings := config.Get().Settings; settings != nil {
-		if settings.Theme != theme.Dark && settings.Theme != theme.Light {
-			if dark, _ := gio_theme.IsDarkMode(); dark {
-				if theme.Current().Name == theme.Light {
-					theme.UseDark()
-				}
-			} else {
-				if theme.Current().Name == theme.Dark {
-					theme.UseLight()
-				}
-			}
-		}
-	}
 	return ui.router.Layout(gtx)
 }
 

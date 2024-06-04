@@ -6,6 +6,8 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	"gioui.org/x/pref/locale"
+	gio_theme "gioui.org/x/pref/theme"
 	"github.com/go-gost/gostctl/config"
 	"github.com/go-gost/gostctl/ui/i18n"
 	"github.com/go-gost/gostctl/ui/icons"
@@ -13,6 +15,7 @@ import (
 	"github.com/go-gost/gostctl/ui/theme"
 	ui_widget "github.com/go-gost/gostctl/ui/widget"
 	"github.com/go-gost/gostctl/version"
+	"golang.org/x/text/language"
 )
 
 type settingsPage struct {
@@ -41,35 +44,29 @@ func NewPage(r *page.Router) page.Page {
 
 func (p *settingsPage) Init(opts ...page.PageOption) {
 	settings := config.Get().Settings
-	if settings == nil {
-		settings = &config.Settings{}
-	}
-	if settings.Lang == "" {
-		settings.Lang = i18n.Current().Value
-	}
 
 	p.lang.Clear()
-	p.lang.Select(ui_widget.SelectorItem{
-		Key:   i18n.Current().Name,
-		Value: i18n.Current().Value,
-	})
+	for _, lang := range i18n.Langs() {
+		if lang.Value == settings.Lang {
+			p.lang.Select(ui_widget.SelectorItem{
+				Name:  lang.Name,
+				Value: lang.Value,
+			})
+			break
+		}
+	}
 
 	p.theme.Clear()
 	switch settings.Theme {
 	case theme.Light:
 		p.theme.Select(ui_widget.SelectorItem{
-			Key:   i18n.ThemeLight,
+			Key:   i18n.Light,
 			Value: settings.Theme,
 		})
 	case theme.Dark:
 		p.theme.Select(ui_widget.SelectorItem{
-			Key:   i18n.ThemeDark,
+			Key:   i18n.Dark,
 			Value: settings.Theme,
-		})
-	default:
-		p.theme.Select(ui_widget.SelectorItem{
-			Key:   i18n.ThemeSystem,
-			Value: theme.System,
 		})
 	}
 }
@@ -187,23 +184,19 @@ func (p *settingsPage) layout(gtx layout.Context, th *material.Theme) layout.Dim
 }
 
 func (p *settingsPage) showLangMenu(gtx layout.Context) {
-	var options []ui_widget.MenuOption
+	options := []ui_widget.MenuOption{}
 	for _, lang := range i18n.Langs() {
 		options = append(options, ui_widget.MenuOption{
-			Key:   lang.Name,
+			Name:  lang.Name,
 			Value: lang.Value,
 		})
 	}
 
-	var found bool
 	for i := range options {
-		if found = p.lang.AnyValue(options[i].Value); found {
+		if found := p.lang.AnyValue(options[i].Value); found {
 			options[i].Selected = found
 			break
 		}
-	}
-	if !found {
-		options[0].Selected = true
 	}
 
 	p.menu.Title = i18n.Language
@@ -220,6 +213,7 @@ func (p *settingsPage) showLangMenu(gtx layout.Context) {
 			if p.menu.Options[index].Selected {
 				p.lang.Select(ui_widget.SelectorItem{
 					Key:   p.menu.Options[index].Key,
+					Name:  p.menu.Options[index].Name,
 					Value: p.menu.Options[index].Value,
 				})
 				break
@@ -227,15 +221,21 @@ func (p *settingsPage) showLangMenu(gtx layout.Context) {
 		}
 
 		cfg := config.Get()
-		if cfg.Settings == nil {
-			cfg.Settings = &config.Settings{}
-		}
 		cfg.Settings.Lang = p.lang.Item().Value
 
 		config.Set(cfg)
 		cfg.Write()
 
 		i18n.Set(cfg.Settings.Lang)
+		if cfg.Settings.Lang == "" {
+			lang, err := locale.Language()
+			if err != nil {
+				lang = language.English
+			}
+			if ls := lang.String(); ls != i18n.Current().Value {
+				i18n.Set(ls)
+			}
+		}
 	}
 
 	p.router.ShowModal(gtx, func(gtx page.C, th *material.Theme) page.D {
@@ -245,20 +245,15 @@ func (p *settingsPage) showLangMenu(gtx layout.Context) {
 
 func (p *settingsPage) showThemeMenu(gtx layout.Context) {
 	options := []ui_widget.MenuOption{
-		{Key: i18n.ThemeSystem, Value: theme.System},
-		{Key: i18n.ThemeLight, Value: theme.Light},
-		{Key: i18n.ThemeDark, Value: theme.Dark},
+		{Key: i18n.Light, Value: theme.Light},
+		{Key: i18n.Dark, Value: theme.Dark},
 	}
 
-	var found bool
 	for i := range options {
-		if found = p.theme.AnyValue(options[i].Value); found {
+		if found := p.theme.AnyValue(options[i].Value); found {
 			options[i].Selected = found
 			break
 		}
-	}
-	if !found {
-		options[0].Selected = true
 	}
 
 	p.menu.Title = i18n.Theme
@@ -282,20 +277,24 @@ func (p *settingsPage) showThemeMenu(gtx layout.Context) {
 		}
 
 		cfg := config.Get()
-		if cfg.Settings == nil {
-			cfg.Settings = &config.Settings{}
-		}
 		cfg.Settings.Theme = p.theme.Item().Value
 
 		config.Set(cfg)
 		cfg.Write()
 
-		switch cfg.Settings.Theme {
-		case theme.Dark:
-			theme.UseDark()
-		default:
-			theme.UseLight()
+		theme.Use(cfg.Settings.Theme)
+		if cfg.Settings.Theme == "" {
+			if dark, _ := gio_theme.IsDarkMode(); dark {
+				if theme.Current().Name == theme.Light {
+					theme.Use(theme.Dark)
+				}
+			} else {
+				if theme.Current().Name == theme.Dark {
+					theme.Use(theme.Light)
+				}
+			}
 		}
+
 		p.router.Emit(page.Event{ID: page.EventThemeChanged})
 	}
 
