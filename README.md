@@ -2,7 +2,18 @@
 
 ### Official GUI client for GOST API management
 
-[![YouTube](http://i.ytimg.com/vi/bA4rIWIlSN4/hqdefault.jpg)](https://www.youtube.com/watch?v=bA4rIWIlSN4)
+
+## Installation
+
+### Binary files
+
+[https://github.com/go-gost/gostctl/releases](https://github.com/go-gost/gostctl/releases)
+
+## YouTube Video
+
+[https://www.youtube.com/watch?v=bA4rIWIlSN4](https://www.youtube.com/watch?v=bA4rIWIlSN4)
+
+[![YouTube](http://i.ytimg.com/vi/bA4rIWIlSN4/sddefault.jpg)](https://www.youtube.com/watch?v=bA4rIWIlSN4)
 
 ## Screenshot
 
