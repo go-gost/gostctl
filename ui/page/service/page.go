@@ -1410,6 +1410,16 @@ func (p *servicePage) generateConfig() *api.ServiceConfig {
 		for _, node := range p.forwarder.nodes {
 			svcCfg.Forwarder.Nodes = append(svcCfg.Forwarder.Nodes, node.cfg)
 		}
+
+		if p.forwarder.enableSelector.Value() {
+			maxFails, _ := strconv.Atoi(p.forwarder.selectorMaxFails.Text())
+			failTimeout, _ := strconv.Atoi(p.forwarder.selectorFailTimeout.Text())
+			svcCfg.Forwarder.Selector = &api.SelectorConfig{
+				Strategy:    p.forwarder.selectorStrategy.Value(),
+				MaxFails:    maxFails,
+				FailTimeout: time.Duration(failTimeout) * time.Second,
+			}
+		}
 	}
 
 	return svcCfg

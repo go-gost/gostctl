@@ -456,15 +456,15 @@ var (
 		{Name: "SSHD", Value: "sshd"},
 		{Name: "HTTP/3", Value: "http3"},
 
-		{Name: "TCP Redirector", Value: "red"},
-		{Name: "UDP Redirector", Value: "redu"},
+		{Name: "RED", Value: "red"},
+		{Name: "REDU", Value: "redu"},
 		{Name: "TUN", Value: "tun"},
 		{Name: "TAP", Value: "tap"},
-		{Key: i18n.ReverseProxyTunnel, Value: "tunnel"},
+		{Key: "Tunnel", Value: "tunnel"},
 
-		{Key: i18n.FileServer, Value: "file"},
-		{Key: i18n.SerialPortRedirector, Value: "serial"},
-		{Key: i18n.UnixDomainSocket, Value: "unix"},
+		{Key: "File", Value: "file"},
+		{Key: "Serial", Value: "serial"},
+		{Key: "Unix", Value: "unix"},
 	}
 )
 

@@ -220,6 +220,10 @@ const (
 	Theme    Key = "theme"
 	Light    Key = "light"
 	Dark     Key = "dark"
+
+	HandlerAutoDesc   Key = "handlerAutoDesc"
+	HandlerHTTPDesc   Key = "handlerHTTPDesc"
+	HandlerSOCKS4Desc Key = "handlerSOCKS4Desc"
 )
 
 type Key string

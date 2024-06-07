@@ -1128,7 +1128,7 @@ func (p *hopPage) generateConfig() *api.HopConfig {
 		return cfg
 	}
 
-	if p.selectorStrategy.Value() != "" {
+	if p.enableSelector.Value() {
 		maxFails, _ := strconv.Atoi(p.selectorMaxFails.Text())
 		failTimeout, _ := strconv.Atoi(p.selectorFailTimeout.Text())
 		cfg.Selector = &api.SelectorConfig{

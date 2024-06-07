@@ -169,4 +169,8 @@ var zh_CN = dict{
 	Theme:    "主题",
 	Light:    "浅色",
 	Dark:     "深色",
+
+	HandlerAutoDesc:   "自动识别协议类型：HTTP，SOCKS4，SOCKS5",
+	HandlerHTTPDesc:   "HTTP代理",
+	HandlerSOCKS4Desc: "SOCKS4代理",
 }

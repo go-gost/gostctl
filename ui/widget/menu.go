@@ -181,6 +181,8 @@ type MenuOption struct {
 	Key      i18n.Key
 	Name     string
 	Value    string
+	DescKey  i18n.Key
+	Desc     string
 	Selected bool
 }
 
@@ -200,14 +202,33 @@ func (p *MenuOption) Layout(gtx layout.Context, th *material.Theme) layout.Dimen
 				Alignment: layout.Middle,
 			}.Layout(gtx,
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					name := p.Name
-					if name == "" {
-						name = p.Key.Value()
-					}
-					if name == "" {
-						name = p.Value
-					}
-					return material.Body2(th, name).Layout(gtx)
+					return layout.Flex{
+						Axis:      layout.Vertical,
+						Alignment: layout.Middle,
+					}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							name := p.Name
+							if name == "" {
+								name = p.Key.Value()
+							}
+							if name == "" {
+								name = p.Value
+							}
+							label := material.Body2(th, name)
+							return label.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							desc := p.Desc
+							if desc == "" {
+								desc = p.DescKey.Value()
+							}
+							if desc == "" {
+								return layout.Dimensions{}
+							}
+
+							return material.Caption(th, desc).Layout(gtx)
+						}),
+					)
 				}),
 				layout.Rigid(layout.Spacer{Width: 8}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {

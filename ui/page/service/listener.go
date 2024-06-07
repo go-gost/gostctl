@@ -527,21 +527,21 @@ var (
 		{Name: "SSHD", Value: "sshd"},
 		{Name: "DNS", Value: "dns"},
 
-		{Name: "TCP Redirector", Value: "red"},
-		{Name: "UDP Redirector", Value: "redu"},
+		{Name: "RED", Value: "red"},
+		{Name: "REDU", Value: "redu"},
 		{Name: "TUN", Value: "tun"},
 		{Name: "TAP", Value: "tap"},
 
 		{Name: "PHT", Value: "pht"},
-		{Name: "Obfs-HTTP", Value: "ohttp"},
-		{Name: "Obfs-TLS", Value: "otls"},
+		{Name: "OHTTP", Value: "ohttp"},
+		{Name: "OTLS", Value: "otls"},
 
 		{Name: "HTTP3", Value: "http3"},
-		{Name: "Fake TCP", Value: "ftcp"},
+		{Name: "FTCP", Value: "ftcp"},
 		{Name: "ICMP", Value: "icmp"},
 
-		{Key: i18n.SerialPortRedirector, Value: "serial"},
-		{Key: i18n.UnixDomainSocket, Value: "unix"},
+		{Key: "Serial", Value: "serial"},
+		{Key: "Unix", Value: "unix"},
 	}
 )
 
